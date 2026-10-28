@@ -20,6 +20,7 @@ import com.shivagency.rewards.ui.screens.pin.PinLockScreen
 import com.shivagency.rewards.ui.screens.refer.ReferScreen
 import com.shivagency.rewards.ui.screens.register.RegisterScreen
 import com.shivagency.rewards.ui.screens.redeem.RedeemScreen
+import com.shivagency.rewards.ui.screens.settings.SettingsScreen
 import com.shivagency.rewards.ui.screens.statement.StatementScreen
 import com.shivagency.rewards.ui.theme.AppColorTheme
 import com.shivagency.rewards.ui.theme.ShivAgencyTheme
@@ -34,7 +35,8 @@ enum class ScreenState {
     HOW_YOU_EARN,
     REDEEM,
     REFER,
-    LEADERBOARD
+    LEADERBOARD,
+    SETTINGS
 }
 
 class MainActivity : ComponentActivity() {
@@ -46,7 +48,10 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             val authRepo = remember { AuthRepository(context) }
 
-            var currentTheme by remember { mutableStateOf(AppColorTheme.BLUE) }
+            val savedThemeName = authRepo.getSavedTheme()
+            var currentTheme by remember {
+                mutableStateOf(try { AppColorTheme.valueOf(savedThemeName) } catch (e: Exception) { AppColorTheme.BLUE })
+            }
             var isHindi by remember { mutableStateOf(authRepo.getSavedLanguage() == "hi") }
             var currentScreen by remember { mutableStateOf(ScreenState.LOGIN) }
             var currentPlumber by remember { mutableStateOf<Plumber?>(null) }
@@ -55,21 +60,25 @@ class MainActivity : ComponentActivity() {
 
             // Check existing login on startup
             LaunchedEffect(Unit) {
-                val uid = authRepo.getCurrentUserId()
-                if (uid != null) {
-                    val profile = authRepo.getPlumberProfile(uid)
-                    if (profile != null) {
-                        currentPlumber = profile
-                        if (authRepo.isPinEnabled()) {
-                            currentScreen = ScreenState.PIN_LOCK
+                try {
+                    val uid = authRepo.getCurrentUserId()
+                    if (uid != null) {
+                        val profile = authRepo.getPlumberProfile(uid)
+                        if (profile != null) {
+                            currentPlumber = profile
+                            if (authRepo.isPinEnabled()) {
+                                currentScreen = ScreenState.PIN_LOCK
+                            } else {
+                                currentScreen = ScreenState.HOME
+                            }
                         } else {
-                            currentScreen = ScreenState.HOME
+                            pendingUserId = uid
+                            currentScreen = ScreenState.REGISTER
                         }
                     } else {
-                        pendingUserId = uid
-                        currentScreen = ScreenState.REGISTER
+                        currentScreen = ScreenState.LOGIN
                     }
-                } else {
+                } catch (e: Exception) {
                     currentScreen = ScreenState.LOGIN
                 }
             }
@@ -170,6 +179,9 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToHowYouEarn = {
                                         currentScreen = ScreenState.HOW_YOU_EARN
                                     },
+                                    onNavigateToSettings = {
+                                        currentScreen = ScreenState.SETTINGS
+                                    },
                                     onSignOut = {
                                         authRepo.signOut()
                                         currentPlumber = null
@@ -213,6 +225,25 @@ class MainActivity : ComponentActivity() {
                                 LeaderboardScreen(
                                     currentPlumber = currentPlumber!!,
                                     isHindi = isHindi,
+                                    onBack = { currentScreen = ScreenState.HOME }
+                                )
+                            }
+                        }
+
+                        ScreenState.SETTINGS -> {
+                            if (currentPlumber != null) {
+                                SettingsScreen(
+                                    plumber = currentPlumber!!,
+                                    currentTheme = currentTheme,
+                                    onThemeChange = {
+                                        currentTheme = it
+                                        authRepo.setSavedTheme(it.name)
+                                    },
+                                    isHindi = isHindi,
+                                    onLanguageChange = { newLangIsHindi ->
+                                        isHindi = newLangIsHindi
+                                        authRepo.setSavedLanguage(if (isHindi) "hi" else "en")
+                                    },
                                     onBack = { currentScreen = ScreenState.HOME }
                                 )
                             }

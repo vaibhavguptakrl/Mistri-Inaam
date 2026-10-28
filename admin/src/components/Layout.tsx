@@ -11,6 +11,7 @@ import {
   X,
   ShieldCheck,
   ToggleLeft,
+  MessageSquare,
   LogOut,
   UserCheck
 } from 'lucide-react'
@@ -32,6 +33,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Points Rules', path: '/rules', icon: Calculator },
     { name: 'Redemptions', path: '/redemptions', icon: Gift },
     { name: 'Schemes & Promos', path: '/schemes', icon: ShieldCheck },
+    { name: 'Message Queue', path: '/messages', icon: MessageSquare },
     { name: 'Settings', path: '/settings', icon: Settings },
     { name: 'Feature Controls', path: '/features', icon: ToggleLeft },
   ]

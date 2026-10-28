@@ -24,11 +24,42 @@ class AuthRepository(private val context: Context) {
 
     // Check if phone number is already registered in Firestore
     suspend fun getPlumberProfile(uid: String): Plumber? {
-        val snapshot = firestore.collection("plumbers").document(uid).get().await()
-        return if (snapshot.exists()) {
-            snapshot.toObject(Plumber::class.java)
-        } else {
-            null
+        return try {
+            val snapshot = firestore.collection("plumbers").document(uid).get().await()
+            if (snapshot.exists()) {
+                snapshot.toObject(Plumber::class.java)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            if (uid == "demo_plumber_99999") {
+                val now = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
+                Plumber(
+                    id = uid,
+                    name = "Ramesh Kumar (Plumber)",
+                    phone = "+919999999999",
+                    whatsappNumber = "+919999999999",
+                    email = "ramesh.plumber@shivagency.com",
+                    panNumber = "ABCDE1234F",
+                    panCardUrl = "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=400&q=80",
+                    aadhaarLast4 = "4821",
+                    aadhaarCardUrl = "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=400&q=80",
+                    selfieUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
+                    referralCode = "SA-4821",
+                    plumberCode = "SA-4821",
+                    kycStatus = "pending",
+                    pointsBalance = 650,
+                    lifetimeEarned = 650,
+                    totalRedeemed = 0,
+                    language = "hi",
+                    pinEnabled = false,
+                    whatsappOptIn = false,
+                    createdAt = now,
+                    updatedAt = now
+                )
+            } else {
+                null
+            }
         }
     }
 
@@ -37,7 +68,11 @@ class AuthRepository(private val context: Context) {
         val demoUid = "demo_plumber_99999"
         prefs.edit().putString("demo_user_id", demoUid).apply()
 
-        val existing = getPlumberProfile(demoUid)
+        val existing = try {
+            getPlumberProfile(demoUid)
+        } catch (e: Exception) {
+            null
+        }
         if (existing != null) {
             return existing
         }
@@ -67,7 +102,11 @@ class AuthRepository(private val context: Context) {
             updatedAt = now
         )
 
-        firestore.collection("plumbers").document(demoUid).set(demoPlumber).await()
+        try {
+            firestore.collection("plumbers").document(demoUid).set(demoPlumber).await()
+        } catch (e: Exception) {
+            // Non-fatal if permission denied
+        }
         return demoPlumber
     }
 
@@ -184,6 +223,13 @@ class AuthRepository(private val context: Context) {
 
     fun savePin(pin: String) {
         prefs.edit().putString("app_pin", pin).putBoolean("pin_enabled", true).apply()
+    }
+
+    // Color Theme Management
+    fun getSavedTheme(): String = prefs.getString("selected_theme", "BLUE") ?: "BLUE"
+
+    fun setSavedTheme(themeName: String) {
+        prefs.edit().putString("selected_theme", themeName).apply()
     }
 
     fun signOut() {

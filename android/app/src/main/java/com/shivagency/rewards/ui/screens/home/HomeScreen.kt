@@ -42,6 +42,7 @@ fun HomeScreen(
     onNavigateToRefer: () -> Unit,
     onNavigateToLeaderboard: () -> Unit,
     onNavigateToHowYouEarn: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     onSignOut: () -> Unit
 ) {
     val context = LocalContext.current
@@ -50,28 +51,24 @@ fun HomeScreen(
     var activeSchemes by remember { mutableStateOf<List<Scheme>>(emptyList()) }
     var currentBannerIndex by remember { mutableStateOf(0) }
 
-    // Live listen to shop settings & active schemes
-    DisposableEffect(Unit) {
-        val settingsListener = firestore.collection("appSettings").document("general")
-            .addSnapshotListener { snapshot, _ ->
+    // Load shop settings & active schemes
+    LaunchedEffect(Unit) {
+        firestore.collection("appSettings").document("general")
+            .get()
+            .addOnSuccessListener { snapshot ->
                 if (snapshot != null && snapshot.exists()) {
                     settings = snapshot.toObject(GeneralSettings::class.java) ?: GeneralSettings()
                 }
             }
 
-        val schemesListener = firestore.collection("schemes")
+        firestore.collection("schemes")
             .whereEqualTo("isActive", true)
-            .addSnapshotListener { snapshot, _ ->
+            .get()
+            .addOnSuccessListener { snapshot ->
                 if (snapshot != null) {
-                    val list = snapshot.toObjects(Scheme::class.java)
-                    activeSchemes = list
+                    activeSchemes = snapshot.toObjects(Scheme::class.java)
                 }
             }
-
-        onDispose {
-            settingsListener.remove()
-            schemesListener.remove()
-        }
     }
 
     // Auto-scrolling banner timer (every 4 seconds)
@@ -152,6 +149,10 @@ fun HomeScreen(
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                         ) {
                             Text(text = if (isHindi) "English" else "हिंदी", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        IconButton(onClick = onNavigateToSettings) {
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
                         }
 
                         IconButton(onClick = onSignOut) {

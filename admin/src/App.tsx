@@ -12,6 +12,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { FeatureControlsPage } from './pages/FeatureControlsPage'
 import { SchemesPage } from './pages/SchemesPage'
 import { RedemptionsPage } from './pages/RedemptionsPage'
+import { MessageLogPage } from './pages/MessageLogPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 
 export const App: React.FC = () => {
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
                     <Route path="/rules" element={<PointsRules />} />
                     <Route path="/schemes" element={<SchemesPage />} />
                     <Route path="/redemptions" element={<RedemptionsPage />} />
+                    <Route path="/messages" element={<MessageLogPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/features" element={<FeatureControlsPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
