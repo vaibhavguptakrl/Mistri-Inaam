@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Mistri Inaam",
+    "slug": "mistri-inaam",
+    "scheme": "mistri-inaam",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.example.mistriinaam",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.example.mistriinaam"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

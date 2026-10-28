@@ -1,0 +1,8 @@
+---
+description: Project rules for this boilerplate
+alwaysApply: true
+---
+
+Follow every rule in AGENTS.md at the root of this project before creating or changing code.
+Prefer the generators (`npm run generate -- <page|component|api|hook> ...`) over writing those files by hand,
+and run `npm run check` after each change.

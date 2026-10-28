@@ -1,0 +1,27 @@
+{
+  "name": "Mistri Inaam",
+  "slug": "mistri-inaam",
+  "appId": "com.example.mistriinaam",
+  "targets": {
+    "web": true,
+    "mobile": true,
+    "desktop": false
+  },
+  "mobile": {
+    "type": "expo",
+    "platforms": ["android", "ios"]
+  },
+  "docker": false,
+  "api": {
+    "mode": "mock",
+    "baseUrl": "http://localhost:8080/api/v1"
+  },
+  "theme": {
+    "mode": "system",
+    "brand": "indigo",
+    "radius": "rounded",
+    "font": "modern"
+  },
+  "demo": true,
+  "setupComplete": true
+}

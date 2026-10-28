@@ -1,0 +1,9 @@
+{
+  "name": "Mistri Inaam",
+  "database": "sqlite",
+  "redis": "none",
+  "port": 8080,
+  "frontendUrl": "http://localhost:5173",
+  "exampleData": true,
+  "setupComplete": true
+}

@@ -1,0 +1,11 @@
+import { screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+import { renderWithProviders } from '@/test/render'
+import { {{pascalCase name}}Page } from './{{pascalCase name}}Page'
+
+describe('{{pascalCase name}}Page', () => {
+  it('shows its title', () => {
+    renderWithProviders(<{{pascalCase name}}Page />)
+    expect(screen.getByRole('heading', { name: '{{titleCase name}}' })).toBeInTheDocument()
+  })
+})

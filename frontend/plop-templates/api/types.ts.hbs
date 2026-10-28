@@ -1,0 +1,14 @@
+/** One {{lowerCase (titleCase singular)}}, as the server sends it. Made with `npm run generate api`. */
+export interface {{singularPascal}} {
+  id: number
+{{#each fieldList}}
+  {{name}}: {{tsType}}
+{{/each}}
+  createdAt: string
+}
+
+/** What you send to create one: everything except what the server fills in. */
+export type Create{{singularPascal}}Input = Omit<{{singularPascal}}, 'id' | 'createdAt'>
+
+/** What you send to change one: any of the fields. */
+export type Update{{singularPascal}}Input = Partial<Create{{singularPascal}}Input>

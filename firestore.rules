@@ -1,0 +1,157 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Admin helper: check if document exists in admins collection or custom claim
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'owner' ||
+        request.auth.token.role == 'staff' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isOwner() {
+      return isAuthenticated() && (
+        request.auth.token.role == 'owner' ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'owner')
+      );
+    }
+
+    // Admins collection
+    match /admins/{adminId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner() || (!exists(/databases/$(database)/documents/admins/$(adminId)) && isUser(adminId));
+    }
+
+    // Plumbers collection
+    match /plumbers/{plumberId} {
+      // Plumbers can read profiles for leaderboard and referral verification; admins can read all
+      allow read: if isAuthenticated() || isAdmin();
+      
+      // Plumber can create their initial profile upon Phone Auth registration
+      allow create: if (isUser(plumberId) || plumberId == 'demo_plumber_99999')
+        && request.resource.data.kycStatus == 'pending'
+        && request.resource.data.pointsBalance >= 0;
+        
+      // Plumbers can update non-critical profile fields (preferences, FCM token, PIN)
+      // Balance, plumber code, and KYC status can ONLY be updated by Admins
+      allow update: if isAdmin() || (
+        isUser(plumberId)
+        && request.resource.data.pointsBalance == resource.data.pointsBalance
+        && request.resource.data.kycStatus == resource.data.kycStatus
+        && request.resource.data.plumberCode == resource.data.plumberCode
+      );
+
+      allow delete: if isOwner();
+    }
+
+    // Ledger transactions (points history)
+    match /transactions/{transactionId} {
+      // Plumbers can only read transactions addressed to them; Admins can read all
+      allow read: if isAdmin() || (
+        isAuthenticated() && resource.data.plumberId == request.auth.uid
+      ) || resource.data.plumberId == 'demo_plumber_99999';
+
+      // Transactions are written by admins, or welcome bonus on registration
+      allow create: if isAdmin() || (
+        isAuthenticated() && request.resource.data.plumberId == request.auth.uid && request.resource.data.type == 'welcome_bonus'
+      ) || request.resource.data.plumberId == 'demo_plumber_99999';
+
+      allow update, delete: if isOwner();
+    }
+
+    // Redemption requests
+    match /redemptionRequests/{requestId} {
+      allow read: if isAdmin() || (
+        isAuthenticated() && resource.data.plumberId == request.auth.uid
+      ) || resource.data.plumberId == 'demo_plumber_99999';
+
+      // Plumbers can create requests for themselves in pending status
+      allow create: if (
+        (isAuthenticated() && request.resource.data.plumberId == request.auth.uid) ||
+        request.resource.data.plumberId == 'demo_plumber_99999'
+      ) && request.resource.data.status == 'pending';
+
+      // Only admins can approve, reject, or mark paid
+      allow update: if isAdmin();
+      allow delete: if isOwner();
+    }
+
+    // Catalogue of rewards (vouchers, tools, mechanical items)
+    match /catalogue/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Schemes and promotions
+    match /schemes/{schemeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Points calculation rules (category and brand wise)
+    match /pointRules/{ruleId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner();
+    }
+
+    // Categories and brands
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner();
+    }
+
+    match /brands/{brandId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner();
+    }
+
+    match /festivals/{festivalId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner();
+    }
+
+    // App Settings (general, features, whatsapp, etc.)
+    match /appSettings/{settingDoc} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner();
+    }
+
+    // Notifications (in-app messages for plumbers)
+    match /notifications/{notificationId} {
+      allow read: if isAdmin() || (
+        isAuthenticated() && resource.data.plumberId == request.auth.uid
+      );
+      allow create: if isAdmin();
+      allow update: if isUser(resource.data.plumberId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Notification Queue (Cloud functions / background queue)
+    match /messageQueue/{messageId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Message templates for Push & WhatsApp
+    match /messageTemplates/{templateId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Audit logs of all admin actions
+    match /auditLogs/{logId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false; // Immutable audit trail
+    }
+  }
+}

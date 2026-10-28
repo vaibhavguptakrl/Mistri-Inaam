@@ -1,0 +1,23 @@
+# How `npm run build:desktop` packages the app. Installers land in apps/desktop/release/.
+appId: __APP_ID__
+productName: __APP_NAME__
+electronVersion: 37.10.3
+npmRebuild: false
+directories:
+  output: release
+  buildResources: build
+files:
+  - main.cjs
+  - preload.cjs
+  - package.json
+extraResources:
+  - from: ../web/dist
+    to: web
+mac:
+  category: public.app-category.productivity
+  target: dmg
+win:
+  target: nsis
+linux:
+  target: AppImage
+  category: Utility

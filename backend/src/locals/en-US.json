@@ -1,0 +1,14 @@
+{
+	"RequestInputValidationError": "Please check the request data",
+	"ResponseInputValidationError": "Response validation failed please refer json schema of response",
+	"SocketRequestInputValidationError": "Please check the request data",
+	"SocketResponseValidationError": "Response validation of socket failed please refer json schema of response",
+	"InternalServerError": "Internal Server Error",
+	"InvalidSocketArgumentError": "Please provide, proper arguments eventName, [payloadObject], and [callback]",
+	"UnAuthorize": "Unauthorized",
+	"InvalidToken": "Either access token not passed or it is expired",
+	"NotFound": "Record not found",
+	"DemoError": "Demo record not found",
+	"Internal Server Error": "Internal Server Error",
+	"Please check the request data": "Please check the request data"
+}

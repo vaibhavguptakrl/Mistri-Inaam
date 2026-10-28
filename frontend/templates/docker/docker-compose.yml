@@ -1,0 +1,36 @@
+# Runs the app in Docker, so you don't need Node.js on this computer.
+#   npm run docker:dev    (or: docker compose up web)
+#   npm run docker:prod   (or: docker compose --profile prod up web-prod)
+#   npm run docker:down   stops everything
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      target: dev
+    ports:
+      - '5173:5173'
+    volumes:
+      # Your edits show up inside the container straight away.
+      - ./apps/web/src:/repo/apps/web/src
+      - ./apps/web/public:/repo/apps/web/public
+      - ./apps/web/index.html:/repo/apps/web/index.html
+      - ./packages/api/src:/repo/packages/api/src
+      - ./packages/theme/src:/repo/packages/theme/src
+      - ./packages/config/src:/repo/packages/config/src
+      - ./project.config.json:/repo/project.config.json
+    environment:
+      # File watching through Docker on Mac/Windows needs polling.
+      CHOKIDAR_USEPOLLING: 'true'
+
+  web-prod:
+    profiles: ['prod']
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      target: production
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_USE_MOCKS: ${VITE_USE_MOCKS:-}
+    ports:
+      - '8080:80'

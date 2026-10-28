@@ -1,0 +1,48 @@
+{
+  "name": "frontend-boilerplate",
+  "private": true,
+  "version": "1.0.0",
+  "description": "One codebase for a website, a mobile app and a desktop app. Start with: npm run setup",
+  "packageManager": "npm@11.17.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "setup": "npm install --no-audit --no-fund && node scripts/setup.mjs",
+    "doctor": "node scripts/doctor.mjs",
+    "dev": "node scripts/run.mjs dev",
+    "dev:web": "node scripts/run.mjs dev:web",
+    "dev:mobile": "node scripts/run.mjs dev:mobile",
+    "dev:desktop": "node scripts/run.mjs dev:desktop",
+    "android": "node scripts/run.mjs android",
+    "ios": "node scripts/run.mjs ios",
+    "build": "node scripts/run.mjs build",
+    "build:web": "node scripts/run.mjs build:web",
+    "build:desktop": "node scripts/run.mjs build:desktop",
+    "build:android": "node scripts/run.mjs build:android",
+    "docker:dev": "node scripts/run.mjs docker:dev",
+    "docker:prod": "node scripts/run.mjs docker:prod",
+    "docker:down": "node scripts/run.mjs docker:down",
+    "generate": "plop",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "check": "turbo run typecheck test",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@clack/prompts": "0.11.0",
+    "plop": "4.0.5",
+    "prettier": "3.5.3",
+    "turbo": "2.5.8",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "fsevents": true
+  }
+}

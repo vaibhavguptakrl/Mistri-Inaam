@@ -1,0 +1,22 @@
+import type { ReactNode } from 'react'
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
+import { useTheme } from '@/providers/ThemeProvider'
+
+export interface {{pascalCase name}}Props {
+  children?: ReactNode
+  style?: StyleProp<ViewStyle>
+}
+
+/** Describe what {{pascalCase name}} shows and when to use it. Made with `npm run generate component`. */
+export function {{pascalCase name}}({ children, style }: {{pascalCase name}}Props) {
+  const { colors, radius } = useTheme()
+  return (
+    <View style={[styles.box, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }, style]}>
+      {children}
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  box: { borderWidth: 1, padding: 16 }
+})

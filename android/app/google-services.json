@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "927252024978",
+    "project_id": "sa-mistri-inaam",
+    "storage_bucket": "sa-mistri-inaam.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:927252024978:android:b1e6fbf26b93e35e5b204b",
+        "android_client_info": {
+          "package_name": "com.shivagency.rewards"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVkMd0fAS8tpHnZtklCGbizLcib9JuBPY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

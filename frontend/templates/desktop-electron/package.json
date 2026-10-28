@@ -1,0 +1,25 @@
+{
+  "name": "@app/desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The desktop app (Mac, Windows, Linux): an Electron window showing the website from apps/web.",
+  "main": "main.cjs",
+  "scripts": {
+    "dev": "node scripts/ensure-electron.cjs && concurrently -k -n web,desktop -c blue,magenta \"npm --prefix ../web run dev\" \"wait-on -t 120000 tcp:127.0.0.1:5173 && electron . --dev\"",
+    "start": "node scripts/ensure-electron.cjs && npm --prefix ../web run build && electron .",
+    "build": "npm --prefix ../web run build && electron-builder --config electron-builder.yml",
+    "build:mac": "npm --prefix ../web run build && electron-builder --config electron-builder.yml --mac",
+    "build:win": "npm --prefix ../web run build && electron-builder --config electron-builder.yml --win",
+    "build:linux": "npm --prefix ../web run build && electron-builder --config electron-builder.yml --linux",
+    "lint": "node --check main.cjs && node --check preload.cjs && node --check scripts/ensure-electron.cjs",
+    "typecheck": "node --check main.cjs && node --check preload.cjs && node --check scripts/ensure-electron.cjs",
+    "test": "node -e \"\"",
+    "postinstall": "node scripts/ensure-electron.cjs"
+  },
+  "devDependencies": {
+    "concurrently": "9.2.5",
+    "electron": "37.10.3",
+    "electron-builder": "26.0.20",
+    "wait-on": "8.0.5"
+  }
+}

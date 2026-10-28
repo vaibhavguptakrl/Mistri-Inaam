@@ -1,0 +1,45 @@
+import { mock, mockError, nextId } from '../mock/server'
+import type { {{singularPascal}} } from './{{folder}}.types'
+
+// Fake {{lowerCase (titleCase name)}} used while project.config.json has "api": { "mode": "mock" }.
+// Change these rows freely. They reset every time the app reloads.
+const rows: {{singularPascal}}[] = {{{mockRows}}}
+
+const find = (id: string) => {
+  const row = rows.find(item => item.id === Number(id))
+  if (!row) throw mockError(404, '{{singularTitle}} not found')
+  return row
+}
+{{#if ops.list}}
+
+mock('GET', '/{{folder}}', () => ({ {{pluralCamel}}: rows }))
+{{/if}}
+{{#if ops.get}}
+
+mock('GET', '/{{folder}}/:id', ({ params }) => ({ {{singularCamel}}: find(params.id) }))
+{{/if}}
+{{#if ops.create}}
+
+mock('POST', '/{{folder}}', ({ body }) => {
+{{#each requiredFields}}
+  if (body.{{this}} === undefined || body.{{this}} === '') throw mockError(422, '{{this}} is required')
+{{/each}}
+  const {{singularCamel}}: {{singularPascal}} = { ...body, id: nextId(rows), createdAt: new Date().toISOString() }
+  rows.push({{singularCamel}})
+  return { {{singularCamel}} }
+})
+{{/if}}
+{{#if ops.update}}
+
+mock('PATCH', '/{{folder}}/:id', ({ params, body }) => {
+  const {{singularCamel}} = Object.assign(find(params.id), body, { id: Number(params.id) })
+  return { {{singularCamel}} }
+})
+{{/if}}
+{{#if ops.delete}}
+
+mock('DELETE', '/{{folder}}/:id', ({ params }) => {
+  rows.splice(rows.indexOf(find(params.id)), 1)
+  return { deleted: true }
+})
+{{/if}}

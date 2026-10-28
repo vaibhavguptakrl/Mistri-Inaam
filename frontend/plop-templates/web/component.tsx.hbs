@@ -1,0 +1,16 @@
+import type { ReactNode } from 'react'
+import { cn } from '@/lib/cn'
+
+export interface {{pascalCase name}}Props {
+  children?: ReactNode
+  className?: string
+}
+
+/** Describe what {{pascalCase name}} shows and when to use it. Made with `npm run generate component`. */
+export function {{pascalCase name}}({ children, className }: {{pascalCase name}}Props) {
+  return (
+    <div className={cn('rounded-md border border-border bg-surface p-4 text-text', className)}>
+      {children}
+    </div>
+  )
+}

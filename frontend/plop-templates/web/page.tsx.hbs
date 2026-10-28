@@ -1,0 +1,17 @@
+import { Card, PageHeader } from '@/components/ui'
+
+/**
+ * The {{titleCase name}} page, at {{#if path}}{{path}}{{else}}/{{kebabCase name}}{{/if}}.
+ * Made with `npm run generate page`. Build it from the pieces in @/components/ui,
+ * and get data with the hooks from '@app/api' (see pages/todos for an example).
+ */
+export function {{pascalCase name}}Page() {
+  return (
+    <>
+      <PageHeader title="{{titleCase name}}" description="Describe what this page is for." />
+      <Card>
+        <p className="text-sm text-text-muted">Start building the {{lowerCase (titleCase name)}} page here.</p>
+      </Card>
+    </>
+  )
+}

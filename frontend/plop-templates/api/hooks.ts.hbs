@@ -1,0 +1,56 @@
+import { {{#if ops.mutations}}useMutation, {{/if}}useQuery{{#if ops.mutations}}, useQueryClient{{/if}} } from '@tanstack/react-query'
+import { {{pluralCamel}}Api } from './{{folder}}.api'
+{{#if ops.update}}
+import type { Update{{singularPascal}}Input } from './{{folder}}.types'
+{{/if}}
+
+/**
+ * Use these in pages and screens. They load, cache and refresh the data for you:
+ *   const {{pluralCamel}} = use{{pluralPascal}}()   → {{pluralCamel}}.data, {{pluralCamel}}.isPending, {{pluralCamel}}.error
+ */
+export const {{singularCamel}}Keys = {
+  all: ['{{folder}}'] as const,
+  one: (id: number) => ['{{folder}}', id] as const
+}
+{{#if ops.list}}
+
+export function use{{pluralPascal}}() {
+  return useQuery({ queryKey: {{singularCamel}}Keys.all, queryFn: {{pluralCamel}}Api.list, select: data => data.{{pluralCamel}} })
+}
+{{/if}}
+{{#if ops.get}}
+
+export function use{{singularPascal}}(id: number) {
+  return useQuery({ queryKey: {{singularCamel}}Keys.one(id), queryFn: () => {{pluralCamel}}Api.get(id), select: data => data.{{singularCamel}} })
+}
+{{/if}}
+{{#if ops.create}}
+
+export function useCreate{{singularPascal}}() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: {{pluralCamel}}Api.create,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: {{singularCamel}}Keys.all })
+  })
+}
+{{/if}}
+{{#if ops.update}}
+
+export function useUpdate{{singularPascal}}() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...input }: Update{{singularPascal}}Input & { id: number }) => {{pluralCamel}}Api.update(id, input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: {{singularCamel}}Keys.all })
+  })
+}
+{{/if}}
+{{#if ops.delete}}
+
+export function useDelete{{singularPascal}}() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: {{pluralCamel}}Api.remove,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: {{singularCamel}}Keys.all })
+  })
+}
+{{/if}}

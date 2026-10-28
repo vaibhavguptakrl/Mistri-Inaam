@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "__APP_NAME__",
+    "slug": "__APP_SLUG__",
+    "scheme": "__APP_SLUG__",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "__APP_ID__",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "__APP_ID__"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

@@ -1,0 +1,24 @@
+import { http } from '../client'
+import type { {{#if ops.create}}Create{{singularPascal}}Input, {{/if}}{{singularPascal}}{{#if ops.update}}, Update{{singularPascal}}Input{{/if}} } from './{{folder}}.types'
+
+/**
+ * Calls to the server for {{lowerCase (titleCase name)}}. With fake data on, these are
+ * answered by {{folder}}.mock.ts instead, so the paths below must match the ones there.
+ */
+export const {{pluralCamel}}Api = {
+{{#if ops.list}}
+  list: () => http.get<{ {{pluralCamel}}: {{singularPascal}}[] }>('/{{folder}}'),
+{{/if}}
+{{#if ops.get}}
+  get: (id: number) => http.get<{ {{singularCamel}}: {{singularPascal}} }>(`/{{folder}}/${id}`),
+{{/if}}
+{{#if ops.create}}
+  create: (input: Create{{singularPascal}}Input) => http.post<{ {{singularCamel}}: {{singularPascal}} }>('/{{folder}}', input),
+{{/if}}
+{{#if ops.update}}
+  update: (id: number, input: Update{{singularPascal}}Input) => http.patch<{ {{singularCamel}}: {{singularPascal}} }>(`/{{folder}}/${id}`, input),
+{{/if}}
+{{#if ops.delete}}
+  remove: (id: number) => http.delete<{ deleted: boolean }>(`/{{folder}}/${id}`),
+{{/if}}
+}

@@ -1,0 +1,34 @@
+{{#if requiresLogin}}
+import { router } from 'expo-router'
+{{/if}}
+import { {{#if requiresLogin}}Button, EmptyState, {{/if}}Card, Screen, {{#if requiresLogin}}Spinner, {{/if}}Text } from '@/components/ui'
+{{#if requiresLogin}}
+import { useAuth } from '@/providers/AuthProvider'
+{{/if}}
+
+/**
+ * The {{titleCase name}} screen. Made with `npm run generate page`.
+ * Build it from the pieces in @/components/ui, and get data with the hooks
+ * from '@app/api' (see app/(tabs)/todos.tsx for an example).
+ */
+export default function {{pascalCase name}}Screen() {
+{{#if requiresLogin}}
+  const { isSignedIn, isLoading } = useAuth()
+  if (isLoading) return <Screen><Spinner /></Screen>
+  if (!isSignedIn) {
+    return (
+      <Screen>
+        <EmptyState title="Sign in to see this" action={<Button title="Sign in" onPress={() => router.push('/login')} />} />
+      </Screen>
+    )
+  }
+
+{{/if}}
+  return (
+    <Screen{{#unless inNav}} title="{{titleCase name}}"{{/unless}} description="Describe what this screen is for.">
+      <Card>
+        <Text tone="muted">Start building the {{lowerCase (titleCase name)}} screen here.</Text>
+      </Card>
+    </Screen>
+  )
+}

@@ -1,0 +1,46 @@
+@import 'tailwindcss';
+
+/*
+ * Colors, corners and fonts come from packages/theme (driven by the "theme" in
+ * project.config.json). They are applied as --theme-* CSS variables at startup;
+ * the lines below turn them into Tailwind classes:
+ *   bg-background  bg-surface  bg-surface-muted  border-border
+ *   text-text  text-text-muted  bg-primary  text-on-primary
+ *   text-danger  text-success  text-warning  rounded-sm/md/lg
+ * Use these instead of fixed colors like bg-white or text-gray-900, so light
+ * and dark mode both work.
+ */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+@theme inline {
+  --color-background: var(--theme-background);
+  --color-surface: var(--theme-surface);
+  --color-surface-muted: var(--theme-surface-muted);
+  --color-border: var(--theme-border);
+  --color-text: var(--theme-text);
+  --color-text-muted: var(--theme-text-muted);
+  --color-primary: var(--theme-primary);
+  --color-on-primary: var(--theme-on-primary);
+  --color-danger: var(--theme-danger);
+  --color-success: var(--theme-success);
+  --color-warning: var(--theme-warning);
+  --radius-sm: var(--theme-radius-sm);
+  --radius-md: var(--theme-radius-md);
+  --radius-lg: var(--theme-radius-lg);
+  --font-sans: var(--theme-font);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--theme-background);
+  color: var(--theme-text);
+  font-family: var(--theme-font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}

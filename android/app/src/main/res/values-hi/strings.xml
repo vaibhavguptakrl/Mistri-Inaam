@@ -1,0 +1,89 @@
+<resources>
+    <string name="app_name">शिव एजेंसी रिवॉर्ड्स</string>
+    <string name="shop_title">शिव एजेंसी</string>
+    <string name="shop_subtitle">प्लंबिंग एवं सेनेटरी सामग्री विक्रेता, करौली</string>
+    <string name="language_toggle">English / हिंदी</string>
+
+    <!-- Auth & Login -->
+    <string name="login_title">प्लंबर एवं ठेकेदार लॉगिन</string>
+    <string name="login_subtitle">ओटीपी प्राप्त करने के लिए अपना मोबाइल नंबर दर्ज करें</string>
+    <string name="mobile_number_label">मोबाइल नंबर</string>
+    <string name="mobile_number_hint">10 अंकों का मोबाइल नंबर</string>
+    <string name="get_otp">ओटीपी प्राप्त करें</string>
+    <string name="enter_otp">6 अंकों का ओटीपी दर्ज करें</string>
+    <string name="verify_otp">सत्यापित करें और आगे बढ़ें</string>
+    <string name="resend_otp">ओटीपी पुनः भेजें</string>
+
+    <!-- Registration & KYC -->
+    <string name="register_title">ठेकेदार पंजीकरण</string>
+    <string name="register_subtitle">रिवॉर्ड पॉइंट्स पाने के लिए केवाईसी पूरा करें</string>
+    <string name="full_name">पूरा नाम</string>
+    <string name="whatsapp_number">व्हाट्सएप नंबर</string>
+    <string name="email_address">ईमेल पता</string>
+    <string name="pan_number">पैन कार्ड नंबर</string>
+    <string name="pan_photo">पैन कार्ड की फोटो अपलोड करें</string>
+    <string name="aadhaar_photo">आधार कार्ड की फोटो अपलोड करें</string>
+    <string name="live_selfie">लाइव सेल्फी लें</string>
+    <string name="referral_code_optional">रेफरल कोड (वैकल्पिक)</string>
+    <string name="consent_checkbox">मैं शिव एजेंसी के नियम एवं गोपनीयता नीति से सहमत हूँ</string>
+    <string name="privacy_policy">गोपनीयता नीति</string>
+    <string name="submit_kyc">पंजीकरण जमा करें</string>
+
+    <!-- KYC Status -->
+    <string name="kyc_pending">केवाईसी सत्यापन प्रक्रियाधीन है</string>
+    <string name="kyc_pending_desc">आप अपने पॉइंट्स देख सकते हैं, लेकिन पॉइंट्स रिडीम करने के लिए दुकान द्वारा आधार व पैन का सत्यापन आवश्यक है।</string>
+    <string name="kyc_approved">केवाईसी स्वीकृत एवं सत्यापित</string>
+    <string name="kyc_rejected">केवाईसी अस्वीकृत</string>
+
+    <!-- Home -->
+    <string name="points_balance_title">कुल रिवॉर्ड बैलेंस</string>
+    <string name="points_unit">पॉइंट्स</string>
+    <string name="rupee_worth">मूल्य ₹%1$s</string>
+    <string name="redeem_progress">न्यूनतम रिडेम्पशन (3000 अंक) तक पहुंचने हेतु ₹%1$s और चाहिए</string>
+    <string name="quick_statement">खाता बही (स्टेटमेंट)</string>
+    <string name="quick_redeem">रिडीम करें</string>
+    <string name="quick_refer">मित्रों को जोड़ें</string>
+    <string name="quick_leaderboard">शीर्ष प्लंबर</string>
+    <string name="how_you_earn">पॉइंट्स नियम एवं दरें</string>
+    <string name="expiring_points_warning">सूचना: कुछ पॉइंट्स जल्द ही समाप्त हो सकते हैं। अपना स्टेटमेंट देखें।</string>
+
+    <!-- Statement & Details -->
+    <string name="statement_title">पॉइंट्स स्टेटमेंट</string>
+    <string name="filter_all">सभी</string>
+    <string name="filter_purchase">खरीददारी</string>
+    <string name="filter_bonus">बोनस</string>
+    <string name="filter_redemption">निकासी</string>
+    <string name="download_pdf">पीडीएफ स्टेटमेंट डाउनलोड करें</string>
+    <string name="bill_calculation_title">बिल गणना विवरण</string>
+
+    <!-- Redeem -->
+    <string name="redeem_title">रिवॉर्ड रिडीम करें</string>
+    <string name="redeem_upi">सीधे यूपीआई (UPI) नकद</string>
+    <string name="redeem_voucher">खरीद वाउचर</string>
+    <string name="redeem_tools">प्लंबर टूल्स व औजार</string>
+    <string name="enter_upi_id">यूपीआई आईडी दर्ज करें (जैसे 9876543210@upi)</string>
+    <string name="submit_redemption">रिडेम्पशन अनुरोध भेजें</string>
+    <string name="minimum_points_notice">रिडीम करने के लिए कम से कम %1$d पॉइंट्स आवश्यक हैं</string>
+
+    <!-- Refer -->
+    <string name="refer_title">साथी प्लंबरों को रेफर करें</string>
+    <string name="refer_desc">अपना कोड साझा करें। जब नया प्लंबर पंजीकृत होकर पहली खरीद करता है, तो आप दोनों को बोनस पॉइंट्स मिलते हैं!</string>
+    <string name="your_referral_code">आपका रेफरल कोड</string>
+    <string name="share_code">व्हाट्सएप पर शेयर करें</string>
+
+    <!-- Leaderboard -->
+    <string name="leaderboard_title">मासिक प्लंबर चैंपियंस</string>
+    <string name="leaderboard_subtitle">प्रत्येक माह शीर्ष प्रदर्शनकर्ताओं को विशेष उपहार</string>
+
+    <!-- Settings -->
+    <string name="settings_title">ऐप सेटिंग्स</string>
+    <string name="language_setting">भाषा बदलें</string>
+    <string name="theme_setting">कलर थीम</string>
+    <string name="theme_blue">रॉयल ब्लू</string>
+    <string name="theme_red">रूबी रेड</string>
+    <string name="theme_charcoal_orange">चारकोल और ऑरेंज</string>
+    <string name="pin_lock">ऐप पिन / बायोमेट्रिक लॉक</string>
+    <string name="whatsapp_updates">व्हाट्सएप ऑटोमैटिक अपडेट्स</string>
+    <string name="coming_soon">जल्द आ रहा है</string>
+    <string name="coming_soon_message">व्हाट्सएप पर ऑटोमैटिक मैसेज की सुविधा जल्द ही शुरू की जा रही है! मेटा क्लाउड एपीआई सेटअप जारी है।</string>
+</resources>

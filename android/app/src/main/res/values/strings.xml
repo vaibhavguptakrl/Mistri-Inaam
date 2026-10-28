@@ -1,0 +1,89 @@
+<resources>
+    <string name="app_name">Shiv Agency Rewards</string>
+    <string name="shop_title">Shiv Agency</string>
+    <string name="shop_subtitle">Plumbing &amp; Sanitary Materials, Karauli</string>
+    <string name="language_toggle">हिंदी / English</string>
+
+    <!-- Auth & Login -->
+    <string name="login_title">Plumber &amp; Contractor Login</string>
+    <string name="login_subtitle">Enter your mobile number to get an OTP</string>
+    <string name="mobile_number_label">Mobile Number</string>
+    <string name="mobile_number_hint">10-digit mobile number</string>
+    <string name="get_otp">Get OTP</string>
+    <string name="enter_otp">Enter 6-digit OTP</string>
+    <string name="verify_otp">Verify &amp; Continue</string>
+    <string name="resend_otp">Resend OTP</string>
+
+    <!-- Registration & KYC -->
+    <string name="register_title">Contractor Registration</string>
+    <string name="register_subtitle">Complete KYC to earn reward points</string>
+    <string name="full_name">Full Name</string>
+    <string name="whatsapp_number">WhatsApp Number</string>
+    <string name="email_address">Email Address</string>
+    <string name="pan_number">PAN Card Number</string>
+    <string name="pan_photo">Upload PAN Card Photo</string>
+    <string name="aadhaar_photo">Upload Aadhaar Card Photo</string>
+    <string name="live_selfie">Take Live Selfie</string>
+    <string name="referral_code_optional">Referral Code (Optional)</string>
+    <string name="consent_checkbox">I agree to terms &amp; conditions and privacy policy of Shiv Agency</string>
+    <string name="privacy_policy">Privacy Policy</string>
+    <string name="submit_kyc">Submit Registration</string>
+
+    <!-- KYC Status -->
+    <string name="kyc_pending">KYC Pending Verification</string>
+    <string name="kyc_pending_desc">You can see earned points, but points redemption unlocks once shop staff verifies your Aadhaar &amp; PAN card.</string>
+    <string name="kyc_approved">KYC Verified &amp; Approved</string>
+    <string name="kyc_rejected">KYC Rejected</string>
+
+    <!-- Home -->
+    <string name="points_balance_title">Total Reward Balance</string>
+    <string name="points_unit">Points</string>
+    <string name="rupee_worth">Worth ₹%1$s</string>
+    <string name="redeem_progress">₹%1$s more to reach minimum redemption (3000 pts)</string>
+    <string name="quick_statement">Statement</string>
+    <string name="quick_redeem">Redeem</string>
+    <string name="quick_refer">Refer &amp; Earn</string>
+    <string name="quick_leaderboard">Top Plumbers</string>
+    <string name="how_you_earn">How You Earn</string>
+    <string name="expiring_points_warning">Notice: Some points may expire soon. Check your statement.</string>
+
+    <!-- Statement & Details -->
+    <string name="statement_title">Points Statement</string>
+    <string name="filter_all">All</string>
+    <string name="filter_purchase">Purchases</string>
+    <string name="filter_bonus">Bonuses</string>
+    <string name="filter_redemption">Redemptions</string>
+    <string name="download_pdf">Download PDF Statement</string>
+    <string name="bill_calculation_title">Bill Calculation Summary</string>
+
+    <!-- Redeem -->
+    <string name="redeem_title">Redeem Rewards</string>
+    <string name="redeem_upi">Instant UPI Cash</string>
+    <string name="redeem_voucher">Shopping Voucher</string>
+    <string name="redeem_tools">Plumber Tools &amp; Equipment</string>
+    <string name="enter_upi_id">Enter UPI ID (e.g. 9876543210@upi)</string>
+    <string name="submit_redemption">Submit Redemption Request</string>
+    <string name="minimum_points_notice">Minimum %1$d points required to redeem</string>
+
+    <!-- Refer -->
+    <string name="refer_title">Refer Fellow Plumbers</string>
+    <string name="refer_desc">Share your code. When a new plumber registers and makes their first purchase, you both earn bonus points!</string>
+    <string name="your_referral_code">Your Referral Code</string>
+    <string name="share_code">Share with WhatsApp / Friends</string>
+
+    <!-- Leaderboard -->
+    <string name="leaderboard_title">Monthly Plumber Champions</string>
+    <string name="leaderboard_subtitle">Top performers rewarded every month</string>
+
+    <!-- Settings -->
+    <string name="settings_title">App Settings</string>
+    <string name="language_setting">Change Language</string>
+    <string name="theme_setting">Color Theme</string>
+    <string name="theme_blue">Royal Blue</string>
+    <string name="theme_red">Ruby Red</string>
+    <string name="theme_charcoal_orange">Charcoal &amp; Orange</string>
+    <string name="pin_lock">App PIN / Biometric Lock</string>
+    <string name="whatsapp_updates">WhatsApp Automatic Updates</string>
+    <string name="coming_soon">COMING SOON</string>
+    <string name="coming_soon_message">Automated WhatsApp message updates are coming soon! Shiv Agency is currently finishing setup with Meta WhatsApp Cloud API.</string>
+</resources>

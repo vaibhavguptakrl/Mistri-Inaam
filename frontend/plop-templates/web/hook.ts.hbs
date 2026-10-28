@@ -1,0 +1,18 @@
+import { useEffect, useState } from 'react'
+
+/**
+ * {{hookName}}: describe what it does and what it returns.
+ * Made with `npm run generate hook`. Use it in any page or component:
+ *   const value = {{hookName}}()
+ */
+export function {{hookName}}() {
+  const [value, setValue] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Start things here (timers, listeners...) and return a function that stops them.
+    setValue('ready')
+    return () => {}
+  }, [])
+
+  return value
+}

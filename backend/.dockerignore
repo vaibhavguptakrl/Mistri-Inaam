@@ -1,0 +1,7 @@
+# Node artifact files
+node_modules/
+dist/
+.husky
+.credentials
+credentials
+./package-lock.json

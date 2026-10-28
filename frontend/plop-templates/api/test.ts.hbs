@@ -1,0 +1,28 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+import { configureApi } from '../client'
+import { {{pluralCamel}}Api } from './{{folder}}.api'
+import './{{folder}}.mock'
+
+beforeEach(() => configureApi({ useMocks: true, mockDelayMs: 0 }))
+
+describe('{{folder}} API (fake data)', () => {
+{{#if ops.list}}
+  it('lists {{lowerCase (titleCase name)}}', async () => {
+    const { {{pluralCamel}} } = await {{pluralCamel}}Api.list()
+    expect({{pluralCamel}}.length).toBeGreaterThan(0)
+  })
+{{/if}}
+{{#if ops.get}}
+
+  it('answers 404 for one that does not exist', async () => {
+    await expect({{pluralCamel}}Api.get(999999)).rejects.toMatchObject({ status: 404 })
+  })
+{{/if}}
+{{#if ops.create}}
+
+  it('creates one', async () => {
+    const { {{singularCamel}} } = await {{pluralCamel}}Api.create({{{sampleInput}}})
+    expect({{singularCamel}}.id).toBeGreaterThan(0)
+  })
+{{/if}}
+})
