@@ -1,6 +1,7 @@
 const { initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 const { defineSecret, defineString } = require("firebase-functions/params");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { createHash } = require("node:crypto");
@@ -95,6 +96,120 @@ exports.setMemberBlocked = onCall({ region: "asia-south1" }, async (request) => 
     timestamp: new Date().toISOString(),
   });
   return { blocked };
+});
+
+exports.deleteMemberAccount = onCall({ region: "asia-south1", timeoutSeconds: 120 }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Admin sign-in required.");
+  const caller = await db.collection("admins").doc(request.auth.uid).get();
+  if (!caller.exists || caller.get("role") !== "owner") {
+    throw new HttpsError("permission-denied", "Only the account owner can delete a member.");
+  }
+
+  const uid = String(request.data?.plumberId || "").trim();
+  if (!uid || uid.length > 128 || uid === request.auth.uid || uid === "demo_plumber_99999") {
+    throw new HttpsError("invalid-argument", "Select a valid member account.");
+  }
+  if ((await db.collection("admins").doc(uid).get()).exists) {
+    throw new HttpsError("failed-precondition", "Administrator accounts cannot be deleted here.");
+  }
+
+  const profileRef = db.collection("plumbers").doc(uid);
+  const profile = await profileRef.get();
+  if (!profile.exists) throw new HttpsError("not-found", "Member profile not found.");
+  const phoneDigits = String(profile.get("phone") || "").replace(/\D/g, "").slice(-10);
+  const confirmationDigits = String(request.data?.confirmation || "").replace(/\D/g, "").slice(-10);
+  if (!phoneDigits || confirmationDigits !== phoneDigits) {
+    throw new HttpsError("failed-precondition", "The confirmation mobile number does not match this member.");
+  }
+
+  const [redemptions, transactions, notifications, queuedMessages, phoneIndexes, auditByEntity, auditByDetails, auditByNewValue] = await Promise.all([
+    db.collection("redemptionRequests").where("plumberId", "==", uid).get(),
+    db.collection("transactions").where("plumberId", "==", uid).get(),
+    db.collection("notifications").where("plumberId", "==", uid).get(),
+    db.collection("messageQueue").where("plumberId", "==", uid).get(),
+    db.collection("memberPhoneIndex").where("uid", "==", uid).get(),
+    db.collection("auditLogs").where("entityId", "==", uid).get(),
+    db.collection("auditLogs").where("details.plumberId", "==", uid).get(),
+    db.collection("auditLogs").where("newValue.plumberId", "==", uid).get(),
+  ]);
+  const unsettled = redemptions.docs.filter((item) => ["pending", "approved", "processing", "queued", "initiated", "payout_processing"].includes(String(item.get("status") || "").toLowerCase()));
+  if (unsettled.length) {
+    throw new HttpsError("failed-precondition", "Resolve pending or in-progress reward payouts before deleting this account.");
+  }
+
+  const referringProfiles = profile.get("plumberCode")
+    ? await db.collection("plumbers").where("referredBy", "==", profile.get("plumberCode")).get()
+    : { docs: [] };
+  const identifiers = [uid, profile.get("name"), profile.get("phone"), profile.get("email"), profile.get("address"), profile.get("panNumber"), profile.get("aadhaarLast4"), profile.get("plumberCode"), profile.get("referralCode")]
+    .filter((value) => typeof value === "string" && value.length > 0);
+  const personalFields = /^(name|plumberName|plumberCode|plumberPhone|phone|email|address|upiId|vpa|fundAccountId|accountNumber|panNumber|aadhaarLast4|selfieUrl|panCardUrl|aadhaarCardUrl|fcmToken)$/i;
+  const redact = (value) => {
+    if (Array.isArray(value)) return value.map(redact);
+    if (value && typeof value === "object" && typeof value.toDate !== "function") {
+      return Object.fromEntries(Object.entries(value).filter(([key]) => !personalFields.test(key)).map(([key, child]) => [key, redact(child)]));
+    }
+    if (typeof value === "string") return identifiers.reduce((result, identifier) => result.split(identifier).join("[removed]"), value);
+    return value;
+  };
+
+  try {
+    // Remove KYC images before deleting their storage paths from the member profile.
+    await getStorage().bucket().deleteFiles({ prefix: `kyc/${uid}/` });
+
+    let batch = db.batch();
+    let writes = 0;
+    const pendingBatches = [];
+    const enqueue = (ref, data, remove = false) => {
+      if (remove) batch.delete(ref);
+      else batch.set(ref, data, { merge: true });
+      writes += 1;
+      if (writes === 450) {
+        pendingBatches.push(batch.commit());
+        batch = db.batch();
+        writes = 0;
+      }
+    };
+
+    for (const item of transactions.docs) {
+      enqueue(item.ref, { ...redact(item.data()), plumberId: "deleted_account", plumberName: "", plumberCode: "", calculationSummary: "Member account deleted" });
+    }
+    for (const item of redemptions.docs) {
+      enqueue(item.ref, {
+        ...redact(item.data()), plumberId: "deleted_account", plumberName: "", plumberCode: "", plumberPhone: "", phone: "", email: "", name: "",
+        vpa: "", upiId: "", fundAccountId: "", accountNumber: "", calculationSummary: "Member account deleted",
+      });
+    }
+    for (const item of notifications.docs) enqueue(item.ref, null, true);
+    for (const item of queuedMessages.docs) enqueue(item.ref, null, true);
+    for (const item of phoneIndexes.docs) enqueue(item.ref, null, true);
+    for (const item of referringProfiles.docs) enqueue(item.ref, { referredBy: "" });
+    for (const item of [...new Map([...auditByEntity.docs, ...auditByDetails.docs, ...auditByNewValue.docs].map((item) => [item.id, item])).values()]) {
+      enqueue(item.ref, redact(item.data()));
+    }
+    enqueue(db.collection("registrationEmailNotifications").doc(uid), null, true);
+    enqueue(db.collection("accountDeletionRequests").doc(uid), null, true);
+    enqueue(profileRef, null, true);
+    if (writes) pendingBatches.push(batch.commit());
+    await Promise.all(pendingBatches);
+
+    await auth.deleteUser(uid).catch((error) => {
+      if (error.code !== "auth/user-not-found") throw error;
+    });
+    await db.collection("auditLogs").add({
+      adminId: request.auth.uid,
+      adminEmail: request.auth.token.email || caller.get("email") || "admin",
+      action: "DELETE_MEMBER",
+      entity: "plumber",
+      entityId: uid,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Member account deletion failed", { uid, message: error?.message || String(error) });
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError("internal", "Could not complete member deletion. Please retry or contact support.");
+  }
+
+  return { deleted: true };
 });
 
 exports.signInMemberWithPhonePassword = onCall({ region: "asia-south1" }, async (request) => {

@@ -28,7 +28,8 @@ import {
   HardHat,
   Filter,
   Lock,
-  Unlock
+  Unlock,
+  Trash2
 } from 'lucide-react'
 
 export const Plumbers: React.FC = () => {
@@ -46,6 +47,7 @@ export const Plumbers: React.FC = () => {
   const [statement, setStatement] = useState<Transaction[]>([])
   const [loadingStatement, setLoadingStatement] = useState(false)
   const [updatingBlockId, setUpdatingBlockId] = useState<string | null>(null)
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null)
 
   const toggleMemberBlocked = async (plumber: Plumber) => {
     if (!isOwner || updatingBlockId) return
@@ -61,6 +63,30 @@ export const Plumbers: React.FC = () => {
       window.alert('Could not update this account. Check your admin access and try again.')
     } finally {
       setUpdatingBlockId(null)
+    }
+  }
+
+  const deleteMember = async (plumber: Plumber) => {
+    if (!isOwner || deletingMemberId) return
+    const confirmed = window.confirm(
+      `Permanently delete ${plumber.name}'s member account? Their KYC files and personal details will be removed, while accounting history is anonymized. Any pending reward payout must be resolved first.`
+    )
+    if (!confirmed) return
+    const phoneConfirmation = window.prompt(`Enter ${plumber.name}'s full mobile number to confirm deletion.`)
+    if (phoneConfirmation === null) return
+
+    setDeletingMemberId(plumber.id)
+    try {
+      await httpsCallable(functions, 'deleteMemberAccount')({ plumberId: plumber.id, confirmation: phoneConfirmation })
+      setPlumbers((items) => items.filter((item) => item.id !== plumber.id))
+      setSelectedPlumber((current) => current?.id === plumber.id ? null : current)
+      window.alert('Member account deleted.')
+    } catch (error: any) {
+      console.error('Could not delete member account:', error)
+      const message = typeof error?.message === 'string' ? error.message : 'Please check your owner access and try again.'
+      window.alert(`Could not delete this account. ${message}`)
+    } finally {
+      setDeletingMemberId(null)
     }
   }
 
@@ -348,6 +374,9 @@ export const Plumbers: React.FC = () => {
                           {isOwner && <button onClick={() => toggleMemberBlocked(p)} disabled={updatingBlockId === p.id} className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold ${p.accountStatus === 'blocked' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                             {p.accountStatus === 'blocked' ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                             {p.accountStatus === 'blocked' ? 'Unblock' : 'Block'}
+                          </button>}
+                          {isOwner && <button onClick={() => deleteMember(p)} disabled={deletingMemberId === p.id} className="inline-flex items-center gap-1 rounded bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 disabled:opacity-50" title="Permanently delete member account">
+                            <Trash2 className="h-3.5 w-3.5" />{deletingMemberId === p.id ? 'Deleting…' : 'Delete'}
                           </button>}
                           <button onClick={() => openProfileModal(p)} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
                             <Eye className="w-3.5 h-3.5" /><span>View Profile &amp; KYC</span>
