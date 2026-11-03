@@ -1,5 +1,6 @@
 package com.shivagency.rewards.ui.screens.home
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,7 +22,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
@@ -42,14 +45,14 @@ fun HomeScreen(
     onNavigateToRefer: () -> Unit,
     onNavigateToLeaderboard: () -> Unit,
     onNavigateToHowYouEarn: () -> Unit,
-    onNavigateToSettings: () -> Unit,
-    onSignOut: () -> Unit
+    onNavigateToSettings: () -> Unit
 ) {
     val context = LocalContext.current
     val firestore = remember { FirebaseFirestore.getInstance() }
     var settings by remember { mutableStateOf(GeneralSettings()) }
     var activeSchemes by remember { mutableStateOf<List<Scheme>>(emptyList()) }
     var currentBannerIndex by remember { mutableStateOf(0) }
+    var currentOfferItemIndex by remember { mutableStateOf(0) }
 
     // Load shop settings & active schemes
     LaunchedEffect(Unit) {
@@ -90,6 +93,17 @@ fun HomeScreen(
         activeSchemes[currentBannerIndex.coerceIn(0, activeSchemes.size - 1)]
     } else null
 
+    LaunchedEffect(currentScheme?.id, currentScheme?.offerItems?.size) {
+        currentOfferItemIndex = 0
+        val itemCount = currentScheme?.offerItems?.size ?: 0
+        if (itemCount > 1) {
+            while (true) {
+                delay(2800)
+                currentOfferItemIndex = (currentOfferItemIndex + 1) % itemCount
+            }
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -103,66 +117,95 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary)
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 18.dp, vertical = 10.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                        Image(
+                            painter = painterResource(R.drawable.shiv_agency_logo),
+                            contentDescription = "Shiv Agency Karauli logo",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(42.dp).clip(CircleShape)
+                        )
+                        Column(modifier = Modifier.padding(start = 9.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = plumber.name,
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Surface(
-                                color = Color.White.copy(alpha = 0.2f),
+                                color = MaterialTheme.colorScheme.primaryContainer,
                                 shape = RoundedCornerShape(6.dp)
                             ) {
                                 Text(
                                     text = plumber.plumberCode,
-                                    color = Color.White,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }
+                        val headerShop = if (settings.shopName.isNotBlank()) settings.shopName else "Shiv Agency"
+                        val headerLocation = if (settings.shopLocation.isNotBlank()) settings.shopLocation else "Karauli"
                         Text(
-                            text = if (isHindi) "शिव एजेंसी करौली — ठेकेदार रिवॉर्ड्स" else "Shiv Agency Karauli — Contractor Rewards",
-                            color = Color.White.copy(alpha = 0.8f),
+                            text = if (isHindi) "$headerShop $headerLocation — ठेकेदार रिवॉर्ड्स" else "$headerShop $headerLocation — Contractor Rewards",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.sp
                         )
+                        }
                     }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         OutlinedButton(
                             onClick = onToggleLanguage,
                             shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                            border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.horizontalGradient(listOf(Color.White.copy(0.4f), Color.White.copy(0.4f)))),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                            border = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.horizontalGradient(listOf(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.outlineVariant))),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                         ) {
                             Text(text = if (isHindi) "English" else "हिंदी", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
 
                         IconButton(onClick = onNavigateToSettings) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White)
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = MaterialTheme.colorScheme.primary)
                         }
 
-                        IconButton(onClick = onSignOut) {
-                            Icon(Icons.Default.ExitToApp, contentDescription = "Sign Out", tint = Color.White)
-                        }
                     }
                 }
             }
 
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Card(
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(42.dp).background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f), RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(23.dp))
+                        }
+                        Column(Modifier.weight(1f).padding(start = 11.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(if (isHindi) "एलीट सदस्य" else "Elite member", color = MaterialTheme.colorScheme.tertiary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("• ${plumber.plumberCode}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                            }
+                            Text(if (isHindi) "नमस्ते, ${plumber.name}" else "Namaste, ${plumber.name}", color = MaterialTheme.colorScheme.onSurface, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, maxLines = 1)
+                            Text("${settings.shopName} • ${settings.shopLocation}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp, maxLines = 1)
+                        }
+                        Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+                    }
+                }
+
                 // KYC Warning Banner
                 if (plumber.kycStatus == "pending") {
                     Card(
@@ -196,6 +239,7 @@ fun HomeScreen(
 
                 // Auto-Scrolling Promotional Banner
                 Card(
+                    onClick = onNavigateToHowYouEarn,
                     shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     modifier = Modifier
@@ -203,53 +247,70 @@ fun HomeScreen(
                         .height(145.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        Image(
-                            painter = rememberAsyncImagePainter(
-                                currentScheme?.bannerUrl ?: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=1000&q=80"
-                            ),
-                            contentDescription = "Scheme Banner",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.78f))))
-                        )
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(14.dp)
-                        ) {
-                            Text(
-                                text = currentScheme?.title ?: (if (isHindi) "शिव एजेंसी प्लंबर महोत्सव" else "Shiv Agency Plumber Mahotsav"),
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
-                            Text(
-                                text = currentScheme?.description ?: (if (isHindi) "विशेष दरों पर सामग्री खरीदें और अधिक अंक अर्जित करें!" else "Special earning rates on all plumbing supplies!"),
-                                color = Color.White.copy(0.85f),
-                                fontSize = 11.sp,
-                                maxLines = 1
-                            )
-                        }
-
-                        // Banner Dot indicators
-                        if (activeSchemes.size > 1) {
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                for (i in activeSchemes.indices) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(if (i == currentBannerIndex) Color.White else Color.White.copy(0.4f))
+                        Crossfade(targetState = currentBannerIndex, label = "scheme-carousel") { bannerIndex ->
+                            val scheme = activeSchemes.getOrNull(bannerIndex)
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(
+                                        scheme?.bannerUrl ?: "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=1000&q=80"
+                                    ),
+                                    contentDescription = scheme?.title ?: "Shiv Agency promotion",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Box(
+                                    modifier = Modifier.fillMaxSize().background(
+                                        Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.82f)))
                                     )
+                                )
+                                Column(
+                                    modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(0.84f).padding(14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Surface(color = Color(0xFFD99012), shape = RoundedCornerShape(20.dp)) {
+                                        Text(
+                                            text = if (isHindi) "विशेष ऑफ़र" else "SPECIAL OFFER",
+                                            color = Color(0xFF172A46), fontSize = 9.sp, fontWeight = FontWeight.Black,
+                                            letterSpacing = 0.8.sp, modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = scheme?.title ?: if (isHindi) "शिव एजेंसी प्लम्बर महोत्सव" else "Shiv Agency Plumber Mahotsav",
+                                        color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 17.sp, maxLines = 1
+                                    )
+                                    Text(
+                                        text = scheme?.description ?: if (isHindi) "हर खरीद पर अंक अर्जित करें" else "Earn points on every purchase",
+                                        color = Color.White.copy(alpha = 0.88f), fontSize = 11.sp, maxLines = 1
+                                    )
+                                    val offerItems = scheme?.offerItems.orEmpty()
+                                    val offerItem = offerItems.getOrNull(currentOfferItemIndex % offerItems.size.coerceAtLeast(1))
+                                    if (offerItem != null && offerItem.text.isNotBlank()) {
+                                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                                            if (offerItem.imageUrl.isNotBlank()) {
+                                                Image(
+                                                    painter = rememberAsyncImagePainter(offerItem.imageUrl),
+                                                    contentDescription = offerItem.text,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.size(30.dp).clip(RoundedCornerShape(7.dp))
+                                                )
+                                            }
+                                            Text(offerItem.text, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, maxLines = 1)
+                                        }
+                                    }
+                                }
+                                if (activeSchemes.size > 1) {
+                                    Row(
+                                        modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        activeSchemes.indices.forEach { i ->
+                                            Box(
+                                                modifier = Modifier.size(if (i == bannerIndex) 16.dp else 6.dp, 6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(if (i == bannerIndex) Color(0xFFFFB328) else Color.White.copy(alpha = 0.55f))
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -258,9 +319,11 @@ fun HomeScreen(
 
                 // Points Balance & Rupee Worth Card
                 Card(
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
+                    onClick = onNavigateToStatement,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x59C59B27)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
@@ -295,8 +358,9 @@ fun HomeScreen(
                             Text(
                                 text = "$currentPoints",
                                 fontSize = 38.sp,
-                                fontWeight = FontWeight.Black,
-                                color = MaterialTheme.colorScheme.primary
+                                fontWeight = FontWeight.SemiBold,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
@@ -335,7 +399,7 @@ fun HomeScreen(
                                     .fillMaxWidth()
                                     .height(8.dp)
                                     .clip(RoundedCornerShape(4.dp)),
-                                color = Color(0xFF10B981),
+                                color = Color(0xFFC59B27),
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant
                             )
                             Spacer(modifier = Modifier.height(6.dp))
@@ -348,6 +412,23 @@ fun HomeScreen(
                                 color = if (currentPoints >= minPoints) Color(0xFF047857) else MaterialTheme.colorScheme.onSurface.copy(0.5f),
                                 fontWeight = FontWeight.Medium
                             )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            BalanceStat(if (isHindi) "कुल अर्जित" else "Lifetime earned", "${plumber.lifetimeEarned}", MaterialTheme.colorScheme.tertiary, Modifier.weight(1f))
+                            BalanceStat(if (isHindi) "कुल निकासी" else "Paid out", "${plumber.totalRedeemed}", MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = onNavigateToRedeem,
+                            shape = RoundedCornerShape(4.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC59B27), contentColor = Color(0xFF0F172A)),
+                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                        ) {
+                            Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, modifier = Modifier.size(17.dp))
+                            Spacer(Modifier.width(7.dp))
+                            Text(if (isHindi) "तुरंत रिडेम्पशन अनुरोध" else "Request a reward payout", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -367,28 +448,28 @@ fun HomeScreen(
                     QuickButton(
                         title = if (isHindi) "खाता बही" else "Statement",
                         icon = Icons.Default.ReceiptLong,
-                        color = Color(0xFF3B82F6),
+                        color = Color(0xFF775A00),
                         modifier = Modifier.weight(1f),
                         onClick = onNavigateToStatement
                     )
                     QuickButton(
                         title = if (isHindi) "रिडीम करें" else "Redeem",
                         icon = Icons.Default.CardGiftcard,
-                        color = Color(0xFF10B981),
+                        color = Color(0xFF006C4A),
                         modifier = Modifier.weight(1f),
                         onClick = onNavigateToRedeem
                     )
                     QuickButton(
                         title = if (isHindi) "मित्रों को जोड़ें" else "Refer",
                         icon = Icons.Default.Share,
-                        color = Color(0xFFF59E0B),
+                        color = Color(0xFFC59B27),
                         modifier = Modifier.weight(1f),
                         onClick = onNavigateToRefer
                     )
                     QuickButton(
                         title = if (isHindi) "शीर्ष प्लंबर" else "Champions",
                         icon = Icons.Default.EmojiEvents,
-                        color = Color(0xFF8B5CF6),
+                        color = Color(0xFF565E74),
                         modifier = Modifier.weight(1f),
                         onClick = onNavigateToLeaderboard
                     )
@@ -397,12 +478,11 @@ fun HomeScreen(
                 // "How You Earn" Row (Shown when settings.showEarningRatesToPlumbers == true)
                 if (settings.showEarningRatesToPlumbers) {
                     Card(
+                        onClick = onNavigateToHowYouEarn,
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onNavigateToHowYouEarn() }
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier.padding(14.dp),
@@ -413,10 +493,10 @@ fun HomeScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .background(Color(0xFF3B82F6).copy(0.12f), CircleShape),
+                                        .background(Color(0xFFC59B27).copy(0.12f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Percent, contentDescription = null, tint = Color(0xFF2563EB), modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.Percent, contentDescription = null, tint = Color(0xFF775A00), modifier = Modifier.size(20.dp))
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
@@ -484,6 +564,21 @@ fun HomeScreen(
 }
 
 @Composable
+private fun BalanceStat(label: String, amount: String, accent: Color, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(6.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Text(label, color = accent, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+            Text("$amount pts", color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
 fun QuickButton(
     title: String,
     icon: ImageVector,
@@ -492,21 +587,22 @@ fun QuickButton(
     onClick: () -> Unit
 ) {
     Card(
+        onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 14.dp, horizontal = 4.dp),
+                .padding(vertical = 12.dp, horizontal = 2.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(42.dp)
                     .background(color.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -518,7 +614,8 @@ fun QuickButton(
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1
+                maxLines = 1,
+                textAlign = TextAlign.Center
             )
         }
     }

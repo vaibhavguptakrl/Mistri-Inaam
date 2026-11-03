@@ -184,7 +184,8 @@ fun RedeemScreen(
                         Text(
                             text = if (isHindi) "इनाम रिडीम करें" else "Redeem Rewards",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
+                            fontSize = 18.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
                         )
                         Text(
                             text = if (isHindi) "उपलब्ध बैलेंस: ${plumber.pointsBalance} अंक (₹${(plumber.pointsBalance * generalSettings.rupeeValuePerPoint).toInt()})"
@@ -210,6 +211,37 @@ fun RedeemScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (isHindi) "वॉलेट बैलेंस • उपलब्ध अंक" else "WALLET BALANCE • AVAILABLE POINTS", fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = MaterialTheme.colorScheme.primary)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(plumber.pointsBalance.toString(), fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, fontWeight = FontWeight.Bold, fontSize = 32.sp, color = MaterialTheme.colorScheme.onSurface)
+                        Text(if (isHindi) " अंक" else " pts", modifier = Modifier.padding(start = 5.dp, bottom = 5.dp), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Spacer(Modifier.weight(1f))
+                        Text("1 pt = ₹${generalSettings.rupeeValuePerPoint}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Text(if (isHindi) "समतुल्य नकद मूल्य: ₹${(plumber.pointsBalance * generalSettings.rupeeValuePerPoint).toInt()}" else "Cash value: ₹${(plumber.pointsBalance * generalSettings.rupeeValuePerPoint).toInt()}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(9.dp))
+                    Surface(color = Color(0xFFE8F4EE), shape = RoundedCornerShape(4.dp), modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(if (isKycApproved) Icons.Default.VerifiedUser else Icons.Default.Schedule, contentDescription = null, tint = if (isKycApproved) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary, modifier = Modifier.size(15.dp))
+                            Text(if (isKycApproved) (if (isHindi) "सत्यापित खाता • निकासी शुल्क शून्य" else "Verified account • zero redemption fee") else (if (isHindi) "खाता सत्यापन के बाद रिडेम्पशन उपलब्ध होगा" else "Redemption unlocks after account verification"), modifier = Modifier.padding(start = 7.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+
             // KYC or Minimum Points Warning Card
             if (!isKycApproved) {
                 Card(
@@ -681,19 +713,23 @@ fun RedeemScreen(
                                         val statusBg = when (req.status) {
                                             "paid" -> Color(0xFFD1FAE5)
                                             "dispatched" -> Color(0xFFDBEAFE)
-                                            "rejected" -> Color(0xFFFEE2E2)
+                                            "rejected", "payout_failed" -> Color(0xFFFEE2E2)
+                                            "payout_processing" -> Color(0xFFDBEAFE)
                                             else -> Color(0xFFFEF3C7)
                                         }
                                         val statusColor = when (req.status) {
                                             "paid" -> Color(0xFF065F46)
                                             "dispatched" -> Color(0xFF1E40AF)
-                                            "rejected" -> Color(0xFF991B1B)
+                                            "rejected", "payout_failed" -> Color(0xFF991B1B)
+                                            "payout_processing" -> Color(0xFF1E40AF)
                                             else -> Color(0xFF92400E)
                                         }
                                         val statusText = when (req.status) {
                                             "paid" -> if (isHindi) "भुगतान पूर्ण" else "Paid"
                                             "dispatched" -> if (isHindi) "भेजा गया" else "Dispatched"
                                             "rejected" -> if (isHindi) "अस्वीकृत" else "Rejected"
+                                            "payout_processing" -> if (isHindi) "UPI भुगतान जारी है" else "UPI payout processing"
+                                            "payout_failed" -> if (isHindi) "भुगतान विफल · अंक वापस" else "Payout failed · points restored"
                                             else -> if (isHindi) "विचाराधीन" else "Pending"
                                         }
 

@@ -3,6 +3,7 @@ package com.shivagency.rewards.ui.screens.settings
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,24 +23,50 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
+import com.shivagency.rewards.data.model.GeneralSettings
 import com.shivagency.rewards.data.model.Plumber
 import com.shivagency.rewards.data.repository.AuthRepository
-import com.shivagency.rewards.ui.theme.AppColorTheme
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     plumber: Plumber,
-    currentTheme: AppColorTheme,
-    onThemeChange: (AppColorTheme) -> Unit,
     isHindi: Boolean,
     onLanguageChange: (Boolean) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onEnablePinLock: () -> Unit,
+    onSignOut: () -> Unit
 ) {
     val context = LocalContext.current
     val authRepo = remember { AuthRepository(context) }
+    val firestore = remember { FirebaseFirestore.getInstance() }
+    var generalSettings by remember { mutableStateOf(GeneralSettings()) }
     var pinEnabled by remember { mutableStateOf(authRepo.isPinEnabled()) }
     var showWhatsAppComingSoonDialog by remember { mutableStateOf(false) }
+    var showSignOutDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var deletionRequestPending by remember { mutableStateOf(false) }
+    var deletionRequestSending by remember { mutableStateOf(false) }
+
+    LaunchedEffect(plumber.id) {
+        firestore.collection("appSettings").document("general")
+            .get()
+            .addOnSuccessListener { doc ->
+                if (doc != null && doc.exists()) {
+                    generalSettings = doc.toObject(GeneralSettings::class.java) ?: GeneralSettings()
+                }
+            }
+
+        try {
+            deletionRequestPending = firestore.collection("accountDeletionRequests").document(plumber.id)
+                .get().await().getString("status") in listOf("pending", "processing")
+        } catch (_: Exception) {
+            // Keep the request action available if reading its status is temporarily unavailable.
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -47,8 +74,9 @@ fun SettingsScreen(
                 title = {
                     Text(
                         text = if (isHindi) "ऐप सेटिंग्स" else "App Settings",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
                     )
                 },
                 navigationIcon = {
@@ -163,7 +191,7 @@ fun SettingsScreen(
                 }
             }
 
-            // 2. Color Themes (Blue, Red, Charcoal+Orange)
+            // 2. Stitch design identity
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -172,43 +200,15 @@ fun SettingsScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = if (isHindi) "रंग थीम (Color Theme)" else "Color Theme",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
+                        Text(if (isHindi) "दिखावट" else "App appearance", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(if (isHindi) "एग्ज़ीक्यूटिव हेरिटेज • हाथीदाँत, शैम्पेन गोल्ड और एमराल्ड" else "Executive Heritage • alabaster ivory, champagne gold and emerald", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                         Spacer(modifier = Modifier.height(12.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // Royal Blue
-                            ThemeOptionPill(
-                                title = if (isHindi) "रॉयल ब्लू" else "Royal Blue",
-                                primaryColor = Color(0xFF1E40AF),
-                                isSelected = currentTheme == AppColorTheme.BLUE,
-                                onClick = { onThemeChange(AppColorTheme.BLUE) },
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            // Ruby Red
-                            ThemeOptionPill(
-                                title = if (isHindi) "रूबी रेड" else "Ruby Red",
-                                primaryColor = Color(0xFFB91C1C),
-                                isSelected = currentTheme == AppColorTheme.RED,
-                                onClick = { onThemeChange(AppColorTheme.RED) },
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            // Charcoal & Orange
-                            ThemeOptionPill(
-                                title = if (isHindi) "ऑरेंज" else "Orange",
-                                primaryColor = Color(0xFFEA580C),
-                                isSelected = currentTheme == AppColorTheme.CHARCOAL_ORANGE,
-                                onClick = { onThemeChange(AppColorTheme.CHARCOAL_ORANGE) },
-                                modifier = Modifier.weight(1f)
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            listOf(Color(0xFFFAF9F6), Color(0xFFC59B27), Color(0xFF006C4A), Color(0xFF0F172A)).forEach { swatch ->
+                                Box(Modifier.size(23.dp).background(swatch, CircleShape).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape))
+                            }
+                            Text(if (isHindi) "सभी स्क्रीन पर एक समान ब्रांड शैली" else "One consistent brand style across every screen", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp)
                         }
                     }
                 }
@@ -244,7 +244,7 @@ fun SettingsScreen(
                                     fontSize = 14.sp
                                 )
                                 Text(
-                                    text = if (isHindi) "ऐप खोलने पर 4-अंकीय पिन मांगें" else "Require 4-digit PIN on app launch",
+                                    text = if (isHindi) "4-अंकीय पिन बनाएं; उपलब्ध होने पर फिंगरप्रिंट भी इस्तेमाल करें" else "Create a 4-digit PIN; use fingerprint when available",
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -254,17 +254,17 @@ fun SettingsScreen(
                         Switch(
                             checked = pinEnabled,
                             onCheckedChange = { isChecked ->
-                                pinEnabled = isChecked
-                                authRepo.setPinEnabled(isChecked)
-                                Toast.makeText(
-                                    context,
-                                    if (isChecked) {
-                                        if (isHindi) "पिन लॉक सक्रिय हुआ" else "PIN Lock Enabled"
-                                    } else {
-                                        if (isHindi) "पिन लॉक निष्क्रिय हुआ" else "PIN Lock Disabled"
-                                    },
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                if (isChecked) {
+                                    onEnablePinLock()
+                                } else {
+                                    pinEnabled = false
+                                    authRepo.setPinEnabled(false)
+                                    Toast.makeText(
+                                        context,
+                                        if (isHindi) "पिन लॉक निष्क्रिय हुआ" else "PIN Lock Disabled",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             }
                         )
                     }
@@ -344,13 +344,19 @@ fun SettingsScreen(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        val shopName = if (generalSettings.shopName.isNotBlank()) generalSettings.shopName else "Shiv Agency"
+                        val shopLocation = if (generalSettings.shopLocation.isNotBlank()) generalSettings.shopLocation else "Karauli, Rajasthan"
+                        val rawDigits = generalSettings.supportPhone.filter { it.isDigit() }
+                        val dialPhone = if (rawDigits.isNotBlank()) rawDigits else "9414000000"
+                        val waPhone = if (dialPhone.startsWith("91")) dialPhone else "91$dialPhone"
+
                         Text(
-                            text = if (isHindi) "शिव एजेंसी दुकान सहायता" else "Shiv Agency Shop Support",
+                            text = if (isHindi) "$shopName दुकान सहायता" else "$shopName Shop Support",
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
                         Text(
-                            text = if (isHindi) "करौली, राजस्थान — किसी भी सहायता हेतु संपर्क करें" else "Karauli, Rajasthan — Contact for any inquiries or points help",
+                            text = if (isHindi) "$shopLocation — किसी भी सहायता हेतु संपर्क करें" else "$shopLocation — Contact for any inquiries or points help",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
@@ -362,7 +368,7 @@ fun SettingsScreen(
                         ) {
                             Button(
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/919414000000"))
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$waPhone"))
                                     context.startActivity(intent)
                                 },
                                 modifier = Modifier.weight(1f),
@@ -376,7 +382,7 @@ fun SettingsScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:9414000000"))
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$dialPhone"))
                                     context.startActivity(intent)
                                 },
                                 modifier = Modifier.weight(1f),
@@ -390,7 +396,105 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                        Text(if (isHindi) "गोपनीयता और डेटा" else "Privacy and data", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(
+                            if (isHindi) "गोपनीयता नीति देखें या खाता हटाने का अनुरोध करें।" else "Read the privacy policy or request deletion of your account.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://sa-mistri-inaam.web.app/privacy")))
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.PrivacyTip, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (isHindi) "गोपनीयता नीति" else "Privacy policy")
+                        }
+                        TextButton(
+                            onClick = { showDeleteAccountDialog = true },
+                            enabled = !deletionRequestPending && !deletionRequestSending,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                when {
+                                    deletionRequestPending -> if (isHindi) "अनुरोध भेजा गया" else "Deletion request submitted"
+                                    deletionRequestSending -> if (isHindi) "अनुरोध भेज रहे हैं…" else "Submitting request…"
+                                    else -> if (isHindi) "खाता हटाने का अनुरोध" else "Request account deletion"
+                                },
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                OutlinedButton(
+                    onClick = { showSignOutDialog = true },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp).height(50.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (isHindi) "लॉग आउट" else "Sign out", fontWeight = FontWeight.Bold)
+                }
+            }
         }
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!deletionRequestSending) showDeleteAccountDialog = false },
+            icon = { Icon(Icons.Default.DeleteForever, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text(if (isHindi) "खाता हटाने का अनुरोध?" else "Request account deletion?") },
+            text = {
+                Text(
+                    if (isHindi)
+                        "हम आपका अनुरोध शिव एजेंसी को भेजेंगे। शेष रिडीम न किए गए पॉइंट समाप्त हो जाएंगे। लंबित भुगतान पूरे होने और पहचान की पुष्टि के बाद खाता और हटाने योग्य व्यक्तिगत डेटा हटाया जाएगा। कानून या वित्तीय रिकॉर्ड के लिए आवश्यक जानकारी रखी जा सकती है।"
+                    else
+                        "We will send this request to Shiv Agency. Any unredeemed points will be forfeited. After verifying your identity and resolving pending payouts, the account and eligible personal data will be deleted. Information required for legal or financial records may be retained."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !deletionRequestSending,
+                    onClick = {
+                        deletionRequestSending = true
+                        FirebaseFunctions.getInstance("asia-south1").getHttpsCallable("requestAccountDeletion").call()
+                            .addOnSuccessListener {
+                                deletionRequestSending = false
+                                deletionRequestPending = true
+                                showDeleteAccountDialog = false
+                                Toast.makeText(context, if (isHindi) "अनुरोध भेज दिया गया" else "Deletion request submitted", Toast.LENGTH_LONG).show()
+                            }
+                            .addOnFailureListener { error ->
+                                deletionRequestSending = false
+                                Toast.makeText(context, error.localizedMessage ?: if (isHindi) "अनुरोध नहीं भेजा जा सका" else "Could not submit request", Toast.LENGTH_LONG).show()
+                            }
+                    }
+                ) { Text(if (isHindi) "अनुरोध भेजें" else "Submit request", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) {
+                    Text(if (isHindi) "रद्द करें" else "Cancel")
+                }
+            }
+        )
     }
 
     // WHATSAPP COMING SOON ALERT DIALOG
@@ -430,6 +534,28 @@ fun SettingsScreen(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(if (isHindi) "ठीक है" else "Got It")
+                }
+            }
+        )
+    }
+
+    if (showSignOutDialog) {
+        AlertDialog(
+            onDismissRequest = { showSignOutDialog = false },
+            icon = { Icon(Icons.Default.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text(if (isHindi) "लॉग आउट करें?" else "Sign out?") },
+            text = { Text(if (isHindi) "आप इस डिवाइस से अपने खाते से बाहर हो जाएंगे।" else "You will be signed out of your account on this device.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSignOutDialog = false
+                    onSignOut()
+                }) {
+                    Text(if (isHindi) "लॉग आउट" else "Sign out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showSignOutDialog = false }) {
+                    Text(if (isHindi) "रद्द करें" else "Cancel")
                 }
             }
         )

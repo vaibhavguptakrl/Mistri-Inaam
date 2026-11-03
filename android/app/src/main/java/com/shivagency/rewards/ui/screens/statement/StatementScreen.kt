@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,7 +20,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.shivagency.rewards.R
 import com.shivagency.rewards.data.model.GeneralSettings
 import com.shivagency.rewards.data.model.Transaction
@@ -29,40 +29,62 @@ import com.shivagency.rewards.data.model.Transaction
 fun StatementScreen(
     plumberId: String,
     isHindi: Boolean,
+    currentBalance: Long = 0L,
     onBack: () -> Unit
 ) {
     val firestore = remember { FirebaseFirestore.getInstance() }
     var transactions by remember { mutableStateOf<List<Transaction>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedFilter by remember { mutableStateOf("all") }
+    var searchQuery by remember { mutableStateOf("") }
     var settings by remember { mutableStateOf(GeneralSettings()) }
     var selectedTxForCalculation by remember { mutableStateOf<Transaction?>(null) }
+    var loadError by remember { mutableStateOf<String?>(null) }
 
-    // Load general settings to check showCalculationDetailsToPlumbers
-    LaunchedEffect(Unit) {
+    LaunchedEffect(plumberId) {
         firestore.collection("appSettings").document("general").get().addOnSuccessListener { doc ->
             if (doc.exists()) {
                 settings = doc.toObject(GeneralSettings::class.java) ?: GeneralSettings()
             }
         }
 
-        firestore.collection("transactions")
+    }
+
+    // Filtering by plumberId alone avoids requiring a Firestore composite index.
+    // ISO timestamps sort lexically, so order the small per-user result locally.
+    DisposableEffect(plumberId) {
+        isLoading = true
+        loadError = null
+        val registration = firestore.collection("transactions")
             .whereEqualTo("plumberId", plumberId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
-                    transactions = snapshot.toObjects(Transaction::class.java)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    loadError = error.localizedMessage ?: "Could not load your statement. Please try again."
+                } else if (snapshot != null) {
+                    transactions = snapshot.documents.mapNotNull { document ->
+                        runCatching { document.toObject(Transaction::class.java) }.getOrNull()
+                    }.sortedByDescending { it.createdAt }
+                    loadError = null
                 }
                 isLoading = false
             }
+
+        onDispose { registration.remove() }
     }
 
-    val filteredList = when (selectedFilter) {
+    val filteredByType = when (selectedFilter) {
         "purchase" -> transactions.filter { it.type == "purchase" }
         "bonus" -> transactions.filter { it.type.contains("bonus") || it.type == "referral" }
         "redemption" -> transactions.filter { it.type == "redemption" }
         else -> transactions
     }
+    val filteredList = filteredByType.filter { tx ->
+        val term = searchQuery.trim()
+        term.isEmpty() || listOf(tx.billNumber.orEmpty(), tx.remarks.orEmpty(), tx.plumberName, tx.type)
+            .any { it.contains(term, ignoreCase = true) }
+    }
+    val lifetimeEarned = transactions.filter { it.type != "redemption" && it.points > 0 }.sumOf { it.points }
+    val lifetimeRedeemed = transactions.filter { it.type == "redemption" }.sumOf { kotlin.math.abs(it.points) }
 
     Scaffold(
         topBar = {
@@ -71,7 +93,9 @@ fun StatementScreen(
                     Text(
                         text = if (isHindi) "खाता बही (पॉइंट्स स्टेटमेंट)" else "Points Statement",
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 navigationIcon = {
@@ -80,9 +104,9 @@ fun StatementScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -93,6 +117,49 @@ fun StatementScreen(
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.AccountBalanceWallet, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(if (isHindi) "शिव एजेंसी डिजिटल पासबुक" else "SHIV AGENCY PASSBOOK", color = MaterialTheme.colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.7.sp)
+                            Text(if (isHindi) "डिजिटल लेजर विवरण" else "Digital ledger statement", color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text(if (isHindi) "सक्रिय शेष" else "Active balance", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                            Text("${currentBalance.toString().reversed().chunked(3).joinToString(",").reversed()} ${if (isHindi) "अंक" else "PTS"}", color = MaterialTheme.colorScheme.primary, fontSize = 27.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Serif)
+                            Text("₹${(currentBalance * settings.rupeeValuePerPoint).toInt()} ${if (isHindi) "नकद मूल्य" else "cash value"}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LedgerTotal(if (isHindi) "कुल अर्जित" else "Lifetime earned", "$lifetimeEarned PTS", MaterialTheme.colorScheme.tertiary, Modifier.weight(1f))
+                        LedgerTotal(if (isHindi) "कुल निकासी" else "Paid out", "$lifetimeRedeemed PTS", MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                placeholder = { Text(if (isHindi) "बिल नंबर या लेन-देन खोजें…" else "Search bill number or activity…") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.primary)
+            )
+
             // Filter Pills
             Row(
                 modifier = Modifier
@@ -118,7 +185,7 @@ fun StatementScreen(
                     ) {
                         Text(
                             text = label,
-                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
@@ -130,6 +197,14 @@ fun StatementScreen(
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
+                }
+            } else if (loadError != null) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                        Text(if (isHindi) "स्टेटमेंट लोड नहीं हो सका" else "Statement could not be loaded", fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(8.dp))
+                        Text(loadError.orEmpty(), color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    }
                 }
             } else if (filteredList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -330,6 +405,16 @@ fun StatementScreen(
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LedgerTotal(label: String, value: String, tint: Color, modifier: Modifier = Modifier) {
+    Surface(color = Color.White, shape = RoundedCornerShape(6.dp), border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = modifier) {
+        Column(Modifier.padding(10.dp)) {
+            Text(label, color = tint, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+            Text(value, color = MaterialTheme.colorScheme.onSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
     }
 }

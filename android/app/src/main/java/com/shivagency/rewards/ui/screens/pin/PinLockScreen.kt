@@ -21,6 +21,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.shivagency.rewards.data.repository.AuthRepository
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 
 @Composable
 fun PinLockScreen(
@@ -29,11 +33,48 @@ fun PinLockScreen(
     isHindi: Boolean
 ) {
     val context = LocalContext.current
+    val activity = context as? FragmentActivity
     val authRepo = remember { AuthRepository(context) }
+    val biometricManager = remember(context) { BiometricManager.from(context) }
+    val biometricStatus = remember(context) {
+        biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+    }
+    val biometricPromptInfo = remember(isHindi) {
+        BiometricPrompt.PromptInfo.Builder()
+            .setTitle(if (isHindi) "शिव एजेंसी अनलॉक करें" else "Unlock Shiv Agency Rewards")
+            .setSubtitle(if (isHindi) "फिंगरप्रिंट या बायोमेट्रिक से जारी रखें" else "Continue with fingerprint or device biometric")
+            .setNegativeButtonText(if (isHindi) "पिन इस्तेमाल करें" else "Use PIN")
+            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK)
+            .build()
+    }
     var enteredPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var step by remember { mutableStateOf(if (isSettingUp) 1 else 0) } // 0: verify, 1: enter new, 2: confirm new
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val biometricPrompt = remember(activity) {
+        activity?.let { host ->
+            BiometricPrompt(
+                host,
+                ContextCompat.getMainExecutor(host),
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                        errorMessage = null
+                        onPinSuccess()
+                    }
+
+                    override fun onAuthenticationFailed() {
+                        errorMessage = if (isHindi) "फिंगरप्रिंट पहचान नहीं हुआ। फिर कोशिश करें या पिन डालें।" else "Fingerprint not recognized. Try again or enter your PIN."
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                        if (errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                            errorMessage = errString.toString()
+                        }
+                    }
+                }
+            )
+        }
+    }
 
     val handleDigit = { digit: String ->
         if (enteredPin.length < 4) {
@@ -73,6 +114,30 @@ fun PinLockScreen(
         if (enteredPin.isNotEmpty()) {
             enteredPin = enteredPin.dropLast(1)
             errorMessage = null
+        }
+    }
+
+    val authenticateWithBiometric = {
+        when (biometricStatus) {
+            BiometricManager.BIOMETRIC_SUCCESS -> {
+                if (isSettingUp) {
+                    errorMessage = if (isHindi) "पहले अपना पिन बनाकर पुष्टि करें।" else "Create and confirm your PIN first."
+                } else if (biometricPrompt != null) {
+                    biometricPrompt.authenticate(biometricPromptInfo)
+                } else {
+                    errorMessage = if (isHindi) "बायोमेट्रिक लॉगिन इस डिवाइस पर उपलब्ध नहीं है।" else "Biometric sign-in is unavailable on this device."
+                }
+            }
+            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> {
+                errorMessage = if (isHindi) "फिंगरप्रिंट इस्तेमाल करने के लिए पहले फ़ोन की सेटिंग्स में फिंगरप्रिंट जोड़ें।" else "Add a fingerprint in your phone settings to use fingerprint unlock."
+            }
+            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE,
+            BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED -> {
+                errorMessage = if (isHindi) "इस डिवाइस पर फिंगरप्रिंट सुविधा उपलब्ध नहीं है। अपना पिन डालें।" else "Fingerprint unlock is not available on this device. Enter your PIN."
+            }
+            else -> {
+                errorMessage = if (isHindi) "बायोमेट्रिक सुविधा अभी उपलब्ध नहीं है। अपना पिन डालें।" else "Biometric unlock is unavailable right now. Enter your PIN."
+            }
         }
     }
 
@@ -195,10 +260,14 @@ fun PinLockScreen(
                                         modifier = Modifier
                                             .size(68.dp)
                                             .clip(CircleShape)
-                                            .clickable { /* Biometric prompt */ },
+                                            .clickable { authenticateWithBiometric() },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(Icons.Default.Fingerprint, contentDescription = "Biometric", tint = MaterialTheme.colorScheme.primary)
+                                        Icon(
+                                            Icons.Default.Fingerprint,
+                                            contentDescription = if (isHindi) "फिंगरप्रिंट से अनलॉक करें" else "Unlock with fingerprint",
+                                            tint = if (biometricStatus == BiometricManager.BIOMETRIC_SUCCESS && !isSettingUp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                                        )
                                     }
                                 }
                                 else -> {

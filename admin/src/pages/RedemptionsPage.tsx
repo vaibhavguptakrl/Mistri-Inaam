@@ -11,6 +11,7 @@ import {
   orderBy
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 import { useAuth } from '../context/AuthContext'
 import {
   RedemptionRequest,
@@ -202,10 +203,6 @@ export const RedemptionsPage: React.FC = () => {
     if (!selectedRequest) return
     setActionError(null)
 
-    if (processAction === 'pay_upi' && !upiReference.trim()) {
-      setActionError('Please enter the UPI Reference ID / UTR number from your payment app.')
-      return
-    }
     if (processAction === 'issue_voucher' && !voucherCode.trim()) {
       setActionError('Please enter the voucher coupon code or gift card number.')
       return
@@ -217,6 +214,18 @@ export const RedemptionsPage: React.FC = () => {
 
     setProcessing(true)
     try {
+      if (processAction === 'pay_upi') {
+        const createPayout = httpsCallable<{ requestId: string }, { payoutId: string; status: string }>(
+          getFunctions(undefined, 'asia-south1'),
+          'createRazorpayUpiPayout'
+        )
+        const result = await createPayout({ requestId: selectedRequest.id })
+        setSelectedRequest(null)
+        setProcessAction(null)
+        await loadRequests()
+        alert(`RazorpayX payout ${result.data.status}: ${result.data.payoutId}`)
+        return
+      }
       const plumberRef = doc(db, 'plumbers', selectedRequest.plumberId)
       const reqRef = doc(db, 'redemptionRequests', selectedRequest.id)
       const now = new Date().toISOString()
@@ -250,10 +259,7 @@ export const RedemptionsPage: React.FC = () => {
         // 2. Determine status and remarks
         let finalStatus: 'paid' | 'dispatched' = 'paid'
         let remarksText = ''
-        if (processAction === 'pay_upi') {
-          finalStatus = 'paid'
-          remarksText = `UPI Transfer to ${selectedRequest.upiId}. UTR: ${upiReference.trim()}`
-        } else if (processAction === 'issue_voucher') {
+        if (processAction === 'issue_voucher') {
           finalStatus = 'paid'
           remarksText = `Voucher: ${selectedRequest.voucherDetails || 'Digital Gift Card'}. Code: ${voucherCode.trim()}`
         } else {
@@ -282,7 +288,7 @@ export const RedemptionsPage: React.FC = () => {
         // 4. Update request document
         transaction.update(reqRef, {
           status: finalStatus,
-          upiReference: processAction === 'pay_upi' ? upiReference.trim() : null,
+          upiReference: null,
           adminRemarks: remarksText,
           processedBy: currentUser?.email || 'admin',
           updatedAt: now
@@ -707,6 +713,16 @@ export const RedemptionsPage: React.FC = () => {
                             <Clock size={12} /> Pending Approval
                           </span>
                         )}
+                        {req.status === 'payout_processing' && (
+                          <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                            <RefreshCw size={12} className="animate-spin" /> UPI Payout Processing
+                          </span>
+                        )}
+                        {req.status === 'payout_failed' && (
+                          <span className="bg-rose-100 text-rose-800 text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
+                            <XCircle size={12} /> Payout Failed · points restored
+                          </span>
+                        )}
                         {req.status === 'paid' && (
                           <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
                             <CheckCircle2 size={12} /> Paid
@@ -783,7 +799,7 @@ export const RedemptionsPage: React.FC = () => {
                     </div>
 
                     {/* Action Buttons for Pending Requests */}
-                    {req.status === 'pending' && (
+                    {(req.status === 'pending' || (req.status === 'payout_processing' && req.method === 'upi')) && (
                       <div className="flex items-center gap-2 w-full lg:w-auto">
                         {req.method === 'upi' && (
                           <button
@@ -795,7 +811,7 @@ export const RedemptionsPage: React.FC = () => {
                             }}
                             className="flex-1 lg:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition"
                           >
-                            <CreditCard size={14} /> Pay via UPI
+                            <CreditCard size={14} /> {req.status === 'pending' ? 'Pay via RazorpayX UPI' : 'Retry / Check RazorpayX'}
                           </button>
                         )}
 
@@ -827,17 +843,19 @@ export const RedemptionsPage: React.FC = () => {
                           </button>
                         )}
 
-                        <button
-                          onClick={() => {
-                            setSelectedRequest(req)
-                            setProcessAction('reject')
-                            setRejectReason('')
-                            setActionError(null)
-                          }}
-                          className="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 text-xs font-semibold px-3 py-2.5 rounded-lg transition"
-                        >
-                          Reject
-                        </button>
+                        {req.status === 'pending' && (
+                          <button
+                            onClick={() => {
+                              setSelectedRequest(req)
+                              setProcessAction('reject')
+                              setRejectReason('')
+                              setActionError(null)
+                            }}
+                            className="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 text-xs font-semibold px-3 py-2.5 rounded-lg transition"
+                          >
+                            Reject
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1092,25 +1110,10 @@ export const RedemptionsPage: React.FC = () => {
                     {selectedRequest.upiId || 'Not provided'}
                   </p>
                   <p className="text-[11px] text-emerald-700 mt-1">
-                    Send ₹{selectedRequest.rupeeValue} via Google Pay, PhonePe, Paytm, or BHIM to this UPI ID, then paste the UTR number below.
+                    RazorpayX will send ₹{selectedRequest.rupeeValue} to this UPI ID. Points are deducted while the payout is processing and restored automatically if RazorpayX reports a failure.
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Bank UTR / Transaction Reference Number *
-                  </label>
-                  <input
-                    type="text"
-                    value={upiReference}
-                    onChange={(e) => setUpiReference(e.target.value)}
-                    placeholder="e.g. 234567890123"
-                    className="w-full px-3 py-2 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    This reference is visible to the plumber on their app statement.
-                  </p>
-                </div>
               </div>
             )}
 
@@ -1218,7 +1221,7 @@ export const RedemptionsPage: React.FC = () => {
                   disabled={processing}
                   className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold flex items-center gap-2"
                 >
-                  {processing ? 'Processing...' : 'Approve & Complete'}
+                  {processing ? 'Processing...' : processAction === 'pay_upi' ? 'Start RazorpayX Payout' : 'Approve & Complete'}
                 </button>
               )}
             </div>

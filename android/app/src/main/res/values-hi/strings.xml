@@ -13,6 +13,7 @@
     <string name="enter_otp">6 अंकों का ओटीपी दर्ज करें</string>
     <string name="verify_otp">सत्यापित करें और आगे बढ़ें</string>
     <string name="resend_otp">ओटीपी पुनः भेजें</string>
+    <string name="google_sign_in">Google से जारी रखें</string>
 
     <!-- Registration & KYC -->
     <string name="register_title">ठेकेदार पंजीकरण</string>

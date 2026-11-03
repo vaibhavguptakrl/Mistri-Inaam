@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
   Users,
@@ -13,9 +13,12 @@ import {
   ToggleLeft,
   MessageSquare,
   LogOut,
-  UserCheck
+  UserCheck,
+  Trash2,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { collection, onSnapshot } from 'firebase/firestore'
+import { db } from '../lib/firebase'
 
 interface LayoutProps {
   children: React.ReactNode
@@ -23,12 +26,22 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [pendingRegistrationCount, setPendingRegistrationCount] = useState(0)
   const location = useLocation()
   const { currentUser, adminProfile, signOut } = useAuth()
+
+  useEffect(() => onSnapshot(collection(db, 'plumbers'), (snapshot) => {
+    setPendingRegistrationCount(snapshot.docs.filter((d) => {
+      const data = d.data()
+      return data.registrationSource === 'mobile_signup' && data.registrationStatus === 'pending_review'
+    }).length)
+  }, (error) => console.error('Could not load signup request count:', error)), [])
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: Award },
     { name: 'Plumbers & KYC', path: '/plumbers', icon: Users },
+    { name: 'Signup Requests', path: '/registrations', icon: UserCheck },
+    { name: 'Deletion Requests', path: '/deletion-requests', icon: Trash2 },
     { name: 'Add Points', path: '/add-points', icon: PlusCircle },
     { name: 'Points Rules', path: '/rules', icon: Calculator },
     { name: 'Redemptions', path: '/redemptions', icon: Gift },
@@ -49,9 +62,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Mobile Header */}
       <header className="md:hidden bg-slate-900 text-white p-4 flex items-center justify-between shadow-md sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center font-bold text-slate-900">
-            SA
-          </div>
+          <img src="/logo.png" alt="Shiv Agency Karauli Admin Panel" className="w-10 h-10 rounded-xl object-contain bg-white" />
           <div>
             <div className="font-bold text-sm tracking-tight">Shiv Agency</div>
             <div className="text-[10px] text-emerald-400 font-medium">Karauli, Rajasthan</div>
@@ -85,9 +96,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div>
           {/* Brand header */}
           <div className="hidden md:flex items-center gap-3 px-2 py-3 mb-6 border-b border-slate-800">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center font-black text-slate-900 text-lg shadow-md">
-              SA
-            </div>
+            <img src="/logo.png" alt="Shiv Agency Karauli Admin Panel" className="w-12 h-12 rounded-xl object-contain bg-white shadow-md" />
             <div>
               <div className="font-bold text-white text-base tracking-tight leading-none">Shiv Agency</div>
               <div className="text-xs text-emerald-400 font-medium mt-1">Loyalty Rewards Admin</div>
@@ -133,7 +142,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   }`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span>{item.name}</span>
+                  <span className="flex-1">{item.name}</span>
+                  {item.path === '/registrations' && pendingRegistrationCount > 0 && (
+                    <span className="min-w-5 h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {pendingRegistrationCount > 99 ? '99+' : pendingRegistrationCount}
+                    </span>
+                  )}
                 </Link>
               )
             })}

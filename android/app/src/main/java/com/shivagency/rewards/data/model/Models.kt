@@ -8,6 +8,7 @@ data class Plumber(
     val phone: String = "",
     val whatsappNumber: String = "",
     val email: String = "",
+    val address: String = "",
     val panNumber: String = "",
     val panCardUrl: String = "",
     val aadhaarLast4: String = "",
@@ -17,6 +18,8 @@ data class Plumber(
     val referredBy: String? = null,
     val plumberCode: String = "",
     val kycStatus: String = "pending", // "pending", "approved", "rejected"
+    val registrationStatus: String = "pending_review",
+    val registrationSource: String = "",
     val kycRemarks: String? = null,
     val pointsBalance: Long = 0,
     val lifetimeEarned: Long = 0,
@@ -87,11 +90,17 @@ data class Scheme(
     val id: String = "",
     val title: String = "",
     val description: String = "",
+    val offerItems: List<SchemeOfferItem> = emptyList(),
     val bannerUrl: String = "",
     val startDate: String = "",
     val endDate: String = "",
     val isActive: Boolean = true,
     val createdAt: String = ""
+)
+
+data class SchemeOfferItem(
+    val text: String = "",
+    val imageUrl: String = ""
 )
 
 data class GeneralSettings(

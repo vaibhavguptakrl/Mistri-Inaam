@@ -27,8 +27,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import com.shivagency.rewards.data.model.GeneralSettings
 import com.shivagency.rewards.data.model.Plumber
+import kotlinx.coroutines.tasks.await
+
+data class ReferredPlumberSummary(
+    val name: String,
+    val plumberCode: String,
+    val hasPurchased: Boolean
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,8 +47,9 @@ fun ReferScreen(
 ) {
     val context = LocalContext.current
     val firestore = remember { FirebaseFirestore.getInstance() }
+    val functions = remember { FirebaseFunctions.getInstance("asia-south1") }
 
-    var referredPlumbers by remember { mutableStateOf<List<Plumber>>(emptyList()) }
+    var referredPlumbers by remember { mutableStateOf<List<ReferredPlumberSummary>>(emptyList()) }
     var generalSettings by remember { mutableStateOf(GeneralSettings()) }
     var isLoading by remember { mutableStateOf(true) }
 
@@ -55,34 +64,38 @@ fun ReferScreen(
                 }
             }
 
-        // 2. Query plumbers who used this plumber's referral code
-        if (plumber.plumberCode.isNotEmpty()) {
-            firestore.collection("plumbers")
-                .whereEqualTo("referredBy", plumber.plumberCode)
-                .get()
-                .addOnSuccessListener { snap ->
-                    val list = mutableListOf<Plumber>()
-                    for (d in snap.documents) {
-                        val p = d.toObject(Plumber::class.java)
-                        if (p != null) list.add(p.copy(id = d.id))
-                    }
-                    referredPlumbers = list
-                    isLoading = false
-                }
-                .addOnFailureListener {
-                    isLoading = false
-                }
-        } else {
+        if (plumber.plumberCode.isBlank()) {
+            isLoading = false
+            return@LaunchedEffect
+        }
+
+        try {
+            val payload = functions.getHttpsCallable("getMyReferrals").call().await().getData() as? Map<*, *>
+            val entries = payload?.get("referrals") as? List<*> ?: emptyList<Any>()
+            referredPlumbers = entries.mapNotNull { entry ->
+                val row = entry as? Map<*, *> ?: return@mapNotNull null
+                ReferredPlumberSummary(
+                    name = row["name"] as? String ?: "Plumber",
+                    plumberCode = row["plumberCode"] as? String ?: "",
+                    hasPurchased = row["hasPurchased"] as? Boolean ?: false
+                )
+            }
+        } catch (_: Exception) {
+            referredPlumbers = emptyList()
+        } finally {
             isLoading = false
         }
     }
 
     // Share Referral Intent
     fun shareReferralCode() {
+        val dealer = if (generalSettings.shopName.isNotBlank()) generalSettings.shopName else "Shiv Agency"
+        val location = if (generalSettings.shopLocation.isNotBlank()) "(${generalSettings.shopLocation})" else ""
+        val bonus = generalSettings.welcomeBonus
         val shareText = if (isHindi) {
-            "शिव एजेंसी (करौली) प्लंबर रिवॉर्ड्स ऐप! मेरे रेफरल कोड *${plumber.plumberCode}* का उपयोग करके ऐप पर रजिस्टर करें और पाएं 500 वेलकम बोनस अंक! पाइप व फिटिंग्स पर हर बिल पर रिवॉर्ड पाएं।"
+            "$dealer $location प्लंबर रिवॉर्ड्स ऐप! मेरे रेफरल कोड *${plumber.plumberCode}* का उपयोग करके ऐप पर रजिस्टर करें और पाएं $bonus वेलकम बोनस अंक! पाइप व फिटिंग्स पर हर बिल पर रिवॉर्ड पाएं।"
         } else {
-            "Join Shiv Agency (Karauli) Loyalty Rewards App! Use my referral code *${plumber.plumberCode}* on registration to get 500 Welcome Bonus points. Earn points on every plumbing purchase!"
+            "Join $dealer $location Loyalty Rewards App! Use my referral code *${plumber.plumberCode}* on registration to get $bonus Welcome Bonus points. Earn points on every plumbing purchase!"
         }
 
         val sendIntent = Intent().apply {
@@ -112,8 +125,9 @@ fun ReferScreen(
                 title = {
                     Text(
                         text = if (isHindi) "रेफर करें और कमाएं" else "Refer & Earn",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 18.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
                     )
                 },
                 navigationIcon = {
@@ -299,7 +313,7 @@ fun ReferScreen(
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFECFDF5))
                     ) {
-                        val activePurchases = referredPlumbers.count { (it.lifetimeEarned ?: 0) > 0 }
+                        val activePurchases = referredPlumbers.count { it.hasPurchased }
                         val earnedPoints = activePurchases * generalSettings.referralBonus
                         Column(modifier = Modifier.padding(14.dp)) {
                             Text(
@@ -368,7 +382,7 @@ fun ReferScreen(
                 }
             } else {
                 items(referredPlumbers) { ref ->
-                    val hasPurchased = (ref.lifetimeEarned ?: 0) > 0
+                    val hasPurchased = ref.hasPurchased
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -389,7 +403,7 @@ fun ReferScreen(
                                     fontSize = 14.sp
                                 )
                                 Text(
-                                    text = "${ref.plumberCode} • ${ref.phone.take(6)}****",
+                                    text = ref.plumberCode,
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

@@ -9,7 +9,8 @@ import {
   orderBy,
   addDoc
 } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { db, functions } from '../lib/firebase'
+import { httpsCallable } from 'firebase/functions'
 import { useAuth } from '../context/AuthContext'
 import type { Plumber, Transaction, KYCStatus } from '../types'
 import {
@@ -25,7 +26,9 @@ import {
   ExternalLink,
   ReceiptText,
   HardHat,
-  Filter
+  Filter,
+  Lock,
+  Unlock
 } from 'lucide-react'
 
 export const Plumbers: React.FC = () => {
@@ -42,6 +45,24 @@ export const Plumbers: React.FC = () => {
   const [isRejecting, setIsRejecting] = useState(false)
   const [statement, setStatement] = useState<Transaction[]>([])
   const [loadingStatement, setLoadingStatement] = useState(false)
+  const [updatingBlockId, setUpdatingBlockId] = useState<string | null>(null)
+
+  const toggleMemberBlocked = async (plumber: Plumber) => {
+    if (!isOwner || updatingBlockId) return
+    const blocked = plumber.accountStatus !== 'blocked'
+    setUpdatingBlockId(plumber.id)
+    try {
+      await httpsCallable(functions, 'setMemberBlocked')({ plumberId: plumber.id, blocked })
+      const updated = { ...plumber, accountStatus: blocked ? 'blocked' as const : 'active' as const }
+      setPlumbers((items) => items.map((item) => item.id === plumber.id ? updated : item))
+      setSelectedPlumber((current) => current?.id === plumber.id ? updated : current)
+    } catch (error) {
+      console.error('Could not update member access:', error)
+      window.alert('Could not update this account. Check your admin access and try again.')
+    } finally {
+      setUpdatingBlockId(null)
+    }
+  }
 
   const loadPlumbers = async () => {
     try {
@@ -323,13 +344,15 @@ export const Plumbers: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => openProfileModal(p)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-100 transition"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View Profile &amp; KYC</span>
-                        </button>
+                        <div className="inline-flex items-center gap-2">
+                          {isOwner && <button onClick={() => toggleMemberBlocked(p)} disabled={updatingBlockId === p.id} className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold ${p.accountStatus === 'blocked' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                            {p.accountStatus === 'blocked' ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                            {p.accountStatus === 'blocked' ? 'Unblock' : 'Block'}
+                          </button>}
+                          <button onClick={() => openProfileModal(p)} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-100 transition">
+                            <Eye className="w-3.5 h-3.5" /><span>View Profile &amp; KYC</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -353,8 +376,10 @@ export const Plumbers: React.FC = () => {
                     {selectedPlumber.plumberCode}
                   </span>
                 </div>
-                <div className="text-xs text-slate-500 mt-1">
-                  Mobile: <span className="font-mono">{selectedPlumber.phone}</span> | WhatsApp: <span className="font-mono">{selectedPlumber.whatsappNumber}</span>
+                <div className="text-xs text-slate-500 mt-1 space-y-1">
+                  <div>Mobile: <span className="font-mono">{selectedPlumber.phone}</span>{selectedPlumber.whatsappNumber && <> | WhatsApp: <span className="font-mono">{selectedPlumber.whatsappNumber}</span></>}</div>
+                  {selectedPlumber.email && <div>Email: <a href={`mailto:${selectedPlumber.email}`} className="text-blue-700 hover:underline">{selectedPlumber.email}</a></div>}
+                  {selectedPlumber.address && <div className="max-w-2xl">Address: <span className="text-slate-700">{selectedPlumber.address}</span></div>}
                 </div>
               </div>
 
@@ -441,7 +466,7 @@ export const Plumbers: React.FC = () => {
             {/* KYC Documents Preview */}
             <div className="mb-6">
               <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider">
-                KYC Verification Documents
+                Application Photo &amp; KYC Documents
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* PAN Card */}

@@ -56,7 +56,8 @@ fun HowYouEarnScreen(
                     Text(
                         text = if (isHindi) "पॉइंट्स नियम एवं दरें" else "How You Earn Points",
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
                     )
                 },
                 navigationIcon = {
@@ -65,9 +66,9 @@ fun HowYouEarnScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.primary
                 )
             )
         }

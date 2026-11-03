@@ -16,7 +16,9 @@ import {
   Sparkles,
   Eye,
   Lock,
-  RotateCcw
+  RotateCcw,
+  Store,
+  Phone
 } from 'lucide-react'
 
 export const SettingsPage: React.FC = () => {
@@ -118,6 +120,64 @@ export const SettingsPage: React.FC = () => {
       )}
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Section 0: Dealer & Shop Profile */}
+        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">
+            <Store className="w-4 h-4 text-emerald-600" />
+            <span>Dealer &amp; Shop Profile</span>
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Shop / Firm Name *
+              </label>
+              <input
+                type="text"
+                required
+                disabled={!isOwner}
+                value={settings.shopName || ''}
+                onChange={(e) => update('shopName', e.target.value)}
+                placeholder="e.g. Shiv Agency"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100"
+              />
+              <span className="text-[11px] text-slate-400">Shown in plumber app header and referral shares</span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Shop Location / City *
+              </label>
+              <input
+                type="text"
+                required
+                disabled={!isOwner}
+                value={settings.shopLocation || ''}
+                onChange={(e) => update('shopLocation', e.target.value)}
+                placeholder="e.g. Near Bus Stand, Karauli, Rajasthan"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100"
+              />
+              <span className="text-[11px] text-slate-400">Displayed in plumber app contact and banner subtitles</span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                Support &amp; WhatsApp Phone *
+              </label>
+              <input
+                type="text"
+                required
+                disabled={!isOwner}
+                value={settings.supportPhone || ''}
+                onChange={(e) => update('supportPhone', e.target.value)}
+                placeholder="e.g. +91 94140 XXXXX"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100"
+              />
+              <span className="text-[11px] text-slate-400">Used by "Call Shop" &amp; "WhatsApp Chat" buttons in app</span>
+            </div>
+          </div>
+        </div>
+
         {/* Section 1: Points & Earning Fallbacks */}
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2 pb-2 border-b border-slate-100">

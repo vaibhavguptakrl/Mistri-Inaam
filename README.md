@@ -40,7 +40,7 @@ graph TD
 ## 🚀 Key Highlights & Spark Plan Compliance
 
 1. **100% Free Tier (Spark Plan) Compliant**:
-   - Cloud Functions and scheduled cron jobs require the paid Blaze plan. All v1 balance calculations, redemptions, and point additions execute through client-side **atomic Firestore transactions**.
+   - Cloud Functions and scheduled cron jobs require the paid Blaze plan. Point additions and catalogue redemptions use atomic Firestore transactions; RazorpayX UPI payouts run through a server-side Cloud Function so payment keys stay private.
    - Monthly milestone bonuses and points expiry checks are executed with **1-click manual admin triggers** directly from the Admin Dashboard.
 2. **Dynamic Business Values (Zero Hardcoding)**:
    - Fallback earn rate (%), rupee value per point (₹1 = 1 pt default), minimum redeem points (3,000 pts default), welcome bonus (500 pts), referral bonus (50 pts), points expiry months (6 months), and festival multipliers are all live-managed in `appSettings/general`.
@@ -125,7 +125,7 @@ The Android app is located in `android/` and built with native **Kotlin** and **
 | **Phase 2** | Auth, KYC & Document Review | Register a plumber in Android (PAN, Aadhaar last-4, live selfie). Inspect documents in Admin (`/plumbers`) and click **"Approve KYC"**. |
 | **Phase 3** | Multi-Line Rules & Add Points | Go to `/add-points` in Admin. Add a bill with CPVC and Water Tanks. Observe automatic rule matching, arithmetic calculation, and tap to view the plain calculation breakdown in Android Statement. |
 | **Phase 4** | Live Business Settings & Schemes | Edit minimum redeem points in Admin (`/settings`). Observe the progress bar and requirements on Android Home update instantly. Add a scheme in `/schemes` and observe the auto-scrolling photo slider. |
-| **Phase 5** | Redemption & Catalogue | Seed default tools and vouchers in Admin (`/redemptions`). In Android, submit a UPI cash request or claim a 14" Pipe Wrench. In Admin, enter bank UTR and click **"Approve & Pay"**; verify atomic point deduction. |
+| **Phase 5** | Redemption & Catalogue | Seed default tools and vouchers in Admin (`/redemptions`). In Android, submit a UPI cash request or claim a 14" Pipe Wrench. In Admin, start the RazorpayX payout; verify the payout status and point ledger. See [RazorpayX setup](RAZORPAYX_SETUP.md) before enabling live payouts. |
 | **Phase 6** | Referrals, Bonuses & Leaderboard | Copy plumber referral code in Android (`/refer`), share via Android share sheet. Award points to a referred plumber to trigger the first-bill referral bonus. Check the **Monthly Champions** podium on both Admin and Android. Click **"Run Monthly Target Bonus"** in Dashboard. |
 | **Phase 7** | WhatsApp Separation | Test 1-click free WhatsApp chat (`wa.me`) from Admin plumber rows. Inspect the prepared bilingual templates in `/messages`. Review [`WHATSAPP_SETUP_GUIDE.md`](file:///c:/Users/DELL/Documents/antigravity/modest-franklin/WHATSAPP_SETUP_GUIDE.md). |
 | **Phase 8** | Theme Persistence & Production Build | Change theme in Android Settings to Ruby Red or Orange; restart app to verify persistence. Generate production bundle. |

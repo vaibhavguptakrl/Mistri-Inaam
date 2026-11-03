@@ -30,6 +30,18 @@ import {
   FileText
 } from 'lucide-react'
 
+// Firestore rejects undefined values, including optional fields nested in arrays.
+// Keep optional properties out of the transaction document while preserving nulls.
+const withoutUndefined = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(withoutUndefined)
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    return Object.fromEntries(
+      Object.entries(value).filter(([, item]) => item !== undefined).map(([key, item]) => [key, withoutUndefined(item)])
+    )
+  }
+  return value
+}
+
 export const AddPoints: React.FC = () => {
   const { currentUser, adminProfile } = useAuth()
   const [plumbers, setPlumbers] = useState<Plumber[]>([])
@@ -196,7 +208,7 @@ export const AddPoints: React.FC = () => {
 
         // 1. Write transaction ledger document with snapshot of each line
         const txRef = doc(db, 'transactions', txId)
-        transaction.set(txRef, {
+        transaction.set(txRef, withoutUndefined({
           id: txId,
           plumberId: selectedPlumber.id,
           plumberCode: selectedPlumber.plumberCode,
@@ -225,7 +237,7 @@ export const AddPoints: React.FC = () => {
           adminId: currentUser?.uid || '',
           adminEmail: currentUser?.email || adminProfile?.email || 'admin',
           createdAt: now
-        })
+        }) as Record<string, unknown>)
 
         // 2. Update Plumber Balance atomically
         transaction.update(plumberRef, {

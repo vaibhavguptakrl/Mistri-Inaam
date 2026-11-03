@@ -3,32 +3,40 @@ package com.shivagency.rewards
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.google.firebase.firestore.FirebaseFirestore
 import com.shivagency.rewards.data.model.Plumber
 import com.shivagency.rewards.data.repository.AuthRepository
+import com.shivagency.rewards.ui.components.EliteBottomBar
+import com.shivagency.rewards.ui.components.EliteTab
 import com.shivagency.rewards.ui.screens.home.HomeScreen
 import com.shivagency.rewards.ui.screens.howyouearn.HowYouEarnScreen
 import com.shivagency.rewards.ui.screens.leaderboard.LeaderboardScreen
 import com.shivagency.rewards.ui.screens.login.LoginScreen
+import com.shivagency.rewards.ui.screens.maintenance.MaintenanceScreen
 import com.shivagency.rewards.ui.screens.pin.PinLockScreen
 import com.shivagency.rewards.ui.screens.refer.ReferScreen
 import com.shivagency.rewards.ui.screens.register.RegisterScreen
+import com.shivagency.rewards.ui.screens.register.PendingReviewScreen
 import com.shivagency.rewards.ui.screens.redeem.RedeemScreen
 import com.shivagency.rewards.ui.screens.settings.SettingsScreen
 import com.shivagency.rewards.ui.screens.statement.StatementScreen
-import com.shivagency.rewards.ui.theme.AppColorTheme
 import com.shivagency.rewards.ui.theme.ShivAgencyTheme
 import kotlinx.coroutines.launch
 
 enum class ScreenState {
     LOGIN,
     REGISTER,
+    PENDING_REVIEW,
     PIN_LOCK,
     HOME,
     STATEMENT,
@@ -39,8 +47,9 @@ enum class ScreenState {
     SETTINGS
 }
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         setContent {
@@ -48,15 +57,37 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             val authRepo = remember { AuthRepository(context) }
 
-            val savedThemeName = authRepo.getSavedTheme()
-            var currentTheme by remember {
-                mutableStateOf(try { AppColorTheme.valueOf(savedThemeName) } catch (e: Exception) { AppColorTheme.BLUE })
-            }
             var isHindi by remember { mutableStateOf(authRepo.getSavedLanguage() == "hi") }
             var currentScreen by remember { mutableStateOf(ScreenState.LOGIN) }
             var currentPlumber by remember { mutableStateOf<Plumber?>(null) }
             var pendingPhoneNumber by remember { mutableStateOf("") }
             var pendingUserId by remember { mutableStateOf("") }
+            var isSettingUpPin by remember { mutableStateOf(false) }
+            var maintenanceEnabled by remember { mutableStateOf(false) }
+            var maintenanceNotice by remember { mutableStateOf("") }
+
+            BackHandler(enabled = currentScreen !in setOf(ScreenState.LOGIN, ScreenState.HOME)) {
+                currentScreen = when (currentScreen) {
+                    ScreenState.REGISTER, ScreenState.PENDING_REVIEW -> ScreenState.LOGIN
+                    ScreenState.PIN_LOCK -> if (isSettingUpPin) ScreenState.SETTINGS else ScreenState.HOME
+                    else -> ScreenState.HOME
+                }
+            }
+
+            DisposableEffect(Unit) {
+                val registration = FirebaseFirestore.getInstance()
+                    .collection("appSettings")
+                    .document("maintenance")
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            android.util.Log.w("ShivAgency", "Could not read maintenance mode", error)
+                        } else if (snapshot != null) {
+                            maintenanceEnabled = snapshot.getBoolean("enabled") == true
+                            maintenanceNotice = snapshot.getString("message").orEmpty()
+                        }
+                    }
+                onDispose { registration.remove() }
+            }
 
             // Check existing login on startup
             LaunchedEffect(Unit) {
@@ -66,9 +97,14 @@ class MainActivity : ComponentActivity() {
                         val profile = authRepo.getPlumberProfile(uid)
                         if (profile != null) {
                             currentPlumber = profile
-                            if (authRepo.isPinEnabled()) {
+                            val savedPin = authRepo.getSavedPin()
+                            if (profile.registrationSource == "mobile_signup" && profile.kycStatus != "approved") {
+                                currentScreen = ScreenState.PENDING_REVIEW
+                            } else if (authRepo.isPinEnabled() && !savedPin.isNullOrBlank()) {
                                 currentScreen = ScreenState.PIN_LOCK
                             } else {
+                                // A stale enabled flag without a saved PIN would lock the user out.
+                                if (authRepo.isPinEnabled()) authRepo.setPinEnabled(false)
                                 currentScreen = ScreenState.HOME
                             }
                         } else {
@@ -83,25 +119,29 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            ShivAgencyTheme(colorTheme = currentTheme) {
+            ShivAgencyTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .safeDrawingPadding(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    when (currentScreen) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Box(modifier = Modifier.weight(1f)) {
+                    if (maintenanceEnabled) {
+                        MaintenanceScreen(isHindi = isHindi, notice = maintenanceNotice)
+                    } else when (currentScreen) {
                         ScreenState.LOGIN -> {
                             LoginScreen(
+                                onRegisterClick = {
+                                    pendingPhoneNumber = ""
+                                    pendingUserId = ""
+                                    currentScreen = ScreenState.REGISTER
+                                },
                                 isHindi = isHindi,
                                 onToggleLanguage = {
                                     isHindi = !isHindi
                                     authRepo.setSavedLanguage(if (isHindi) "hi" else "en")
-                                },
-                                onDemoLoginClick = {
-                                    scope.launch {
-                                        val demoPlumber = authRepo.signInDemoPlumber()
-                                        currentPlumber = demoPlumber
-                                        currentScreen = ScreenState.HOME
-                                    }
                                 },
                                 onLoginSuccess = { isNewUser, phone ->
                                     val uid = authRepo.getCurrentUserId() ?: ""
@@ -114,9 +154,13 @@ class MainActivity : ComponentActivity() {
                                             val profile = authRepo.getPlumberProfile(uid)
                                             if (profile != null) {
                                                 currentPlumber = profile
-                                                if (authRepo.isPinEnabled()) {
+                                                val savedPin = authRepo.getSavedPin()
+                                                if (profile.registrationSource == "mobile_signup" && profile.kycStatus != "approved") {
+                                                    currentScreen = ScreenState.PENDING_REVIEW
+                                                } else if (authRepo.isPinEnabled() && !savedPin.isNullOrBlank()) {
                                                     currentScreen = ScreenState.PIN_LOCK
                                                 } else {
+                                                    if (authRepo.isPinEnabled()) authRepo.setPinEnabled(false)
                                                     currentScreen = ScreenState.HOME
                                                 }
                                             } else {
@@ -130,27 +174,40 @@ class MainActivity : ComponentActivity() {
 
                         ScreenState.REGISTER -> {
                             RegisterScreen(
-                                phoneNumber = pendingPhoneNumber,
-                                userId = pendingUserId,
                                 isHindi = isHindi,
                                 onRegistrationSuccess = { plumber ->
                                     currentPlumber = plumber
-                                    Toast.makeText(
-                                        context,
-                                        if (isHindi) "पंजीकरण सफल! आपका कोड: ${plumber.plumberCode}" else "Registration Complete! Your Code: ${plumber.plumberCode}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                    currentScreen = ScreenState.HOME
+                                    currentScreen = ScreenState.PENDING_REVIEW
+                                }
+                            )
+                        }
+
+                        ScreenState.PENDING_REVIEW -> {
+                            PendingReviewScreen(
+                                plumber = currentPlumber,
+                                isHindi = isHindi,
+                                onCheckStatus = {
+                                    scope.launch {
+                                        val uid = authRepo.getCurrentUserId()
+                                        if (uid != null) {
+                                            val refreshed = authRepo.getPlumberProfile(uid)
+                                            if (refreshed != null) {
+                                                currentPlumber = refreshed
+                                                if (refreshed.kycStatus == "approved") currentScreen = ScreenState.HOME
+                                            }
+                                        }
+                                    }
                                 }
                             )
                         }
 
                         ScreenState.PIN_LOCK -> {
                             PinLockScreen(
-                                isSettingUp = false,
+                                isSettingUp = isSettingUpPin,
                                 isHindi = isHindi,
                                 onPinSuccess = {
-                                    currentScreen = ScreenState.HOME
+                                    currentScreen = if (isSettingUpPin) ScreenState.SETTINGS else ScreenState.HOME
+                                    isSettingUpPin = false
                                 }
                             )
                         }
@@ -181,11 +238,6 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onNavigateToSettings = {
                                         currentScreen = ScreenState.SETTINGS
-                                    },
-                                    onSignOut = {
-                                        authRepo.signOut()
-                                        currentPlumber = null
-                                        currentScreen = ScreenState.LOGIN
                                     }
                                 )
                             }
@@ -234,17 +286,21 @@ class MainActivity : ComponentActivity() {
                             if (currentPlumber != null) {
                                 SettingsScreen(
                                     plumber = currentPlumber!!,
-                                    currentTheme = currentTheme,
-                                    onThemeChange = {
-                                        currentTheme = it
-                                        authRepo.setSavedTheme(it.name)
-                                    },
                                     isHindi = isHindi,
                                     onLanguageChange = { newLangIsHindi ->
                                         isHindi = newLangIsHindi
                                         authRepo.setSavedLanguage(if (isHindi) "hi" else "en")
                                     },
-                                    onBack = { currentScreen = ScreenState.HOME }
+                                    onBack = { currentScreen = ScreenState.HOME },
+                                    onEnablePinLock = {
+                                        isSettingUpPin = true
+                                        currentScreen = ScreenState.PIN_LOCK
+                                    },
+                                    onSignOut = {
+                                        authRepo.signOut()
+                                        currentPlumber = null
+                                        currentScreen = ScreenState.LOGIN
+                                    }
                                 )
                             }
                         }
@@ -253,6 +309,7 @@ class MainActivity : ComponentActivity() {
                             StatementScreen(
                                 plumberId = currentPlumber?.id ?: "",
                                 isHindi = isHindi,
+                                currentBalance = currentPlumber?.pointsBalance ?: 0L,
                                 onBack = { currentScreen = ScreenState.HOME }
                             )
                         }
@@ -262,6 +319,25 @@ class MainActivity : ComponentActivity() {
                                 isHindi = isHindi,
                                 onBack = { currentScreen = ScreenState.HOME }
                             )
+                        }
+                    }
+                        }
+
+                        if (!maintenanceEnabled && currentPlumber != null && currentScreen in setOf(ScreenState.HOME, ScreenState.STATEMENT, ScreenState.REDEEM, ScreenState.SETTINGS)) {
+                            val selectedTab = when (currentScreen) {
+                                ScreenState.STATEMENT -> EliteTab.PASSBOOK
+                                ScreenState.REDEEM -> EliteTab.REWARDS
+                                ScreenState.SETTINGS -> EliteTab.PROFILE
+                                else -> EliteTab.HOME
+                            }
+                            EliteBottomBar(selected = selectedTab, isHindi = isHindi) { tab ->
+                                currentScreen = when (tab) {
+                                    EliteTab.HOME -> ScreenState.HOME
+                                    EliteTab.PASSBOOK -> ScreenState.STATEMENT
+                                    EliteTab.REWARDS -> ScreenState.REDEEM
+                                    EliteTab.PROFILE -> ScreenState.SETTINGS
+                                }
+                            }
                         }
                     }
                 }

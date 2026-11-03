@@ -6,6 +6,7 @@ export interface Plumber {
   phone: string
   whatsappNumber: string
   email: string
+  address?: string
   panNumber: string
   panCardUrl: string
   aadhaarLast4: string
@@ -15,6 +16,9 @@ export interface Plumber {
   referredBy?: string
   plumberCode: string
   kycStatus: KYCStatus
+  accountStatus?: 'active' | 'blocked'
+  registrationStatus?: 'pending_review' | 'approved' | 'rejected'
+  registrationSource?: string
   kycRemarks?: string
   pointsBalance: number
   lifetimeEarned: number
@@ -104,7 +108,7 @@ export interface Brand {
 }
 
 export type RedemptionMethod = 'upi' | 'voucher' | 'tool'
-export type RedemptionStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'dispatched'
+export type RedemptionStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'dispatched' | 'payout_processing' | 'payout_failed'
 
 export interface RedemptionRequest {
   id: string
@@ -141,11 +145,17 @@ export interface Scheme {
   id: string
   title: string
   description: string
+  offerItems?: SchemeOfferItem[]
   bannerUrl: string
   startDate: string
   endDate: string
   isActive: boolean
   createdAt: string
+}
+
+export interface SchemeOfferItem {
+  text: string
+  imageUrl: string
 }
 
 export interface GeneralSettings {

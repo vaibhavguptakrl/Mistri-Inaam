@@ -2,25 +2,58 @@ package com.shivagency.rewards.data.repository
 
 import android.content.Context
 import android.net.Uri
+import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.PhoneAuthCredential
-import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import com.shivagency.rewards.data.model.Plumber
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 import kotlin.random.Random
 
 class AuthRepository(private val context: Context) {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
     private val storage: FirebaseStorage = FirebaseStorage.getInstance()
+    private val functions: FirebaseFunctions = FirebaseFunctions.getInstance("asia-south1")
     private val prefs = context.getSharedPreferences("shiv_rewards_prefs", Context.MODE_PRIVATE)
 
-    fun getCurrentUserId(): String? = prefs.getString("demo_user_id", null) ?: auth.currentUser?.uid
+    fun getCurrentUserId(): String? = auth.currentUser?.uid
 
-    fun isUserLoggedIn(): Boolean = prefs.getString("demo_user_id", null) != null || auth.currentUser != null
+    fun isUserLoggedIn(): Boolean = auth.currentUser != null
+
+    suspend fun signInWithGoogle(idToken: String): AuthResult {
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        return auth.signInWithCredential(credential).await()
+    }
+
+    suspend fun registerMemberAccount(phone: String, email: String, password: String): FirebaseUser {
+        val apiKey = auth.app.options.apiKey ?: throw IllegalStateException("Firebase API key is missing.")
+        val result = functions.getHttpsCallable("registerMemberAccount").call(
+            mapOf("phone" to phone, "email" to email, "password" to password, "apiKey" to apiKey)
+        ).await()
+        val token = (result.getData() as? Map<*, *>)?.get("customToken") as? String
+            ?: throw IllegalStateException("Account setup could not be completed.")
+        return auth.signInWithCustomToken(token).await().user
+            ?: throw IllegalStateException("Account sign-in could not be completed.")
+    }
+
+    suspend fun signInWithPhonePassword(phone: String, password: String): FirebaseUser {
+        val apiKey = auth.app.options.apiKey ?: throw IllegalStateException("Firebase API key is missing.")
+        val result = functions.getHttpsCallable("signInMemberWithPhonePassword").call(
+            mapOf("phone" to phone, "password" to password, "apiKey" to apiKey)
+        ).await()
+        val token = (result.getData() as? Map<*, *>)?.get("customToken") as? String
+            ?: throw IllegalStateException("Sign-in could not be completed.")
+        return auth.signInWithCustomToken(token).await().user
+            ?: throw IllegalStateException("Sign-in could not be completed.")
+    }
+
+    suspend fun requestMemberPasswordReset(identifier: String) {
+        functions.getHttpsCallable("requestMemberPasswordReset").call(mapOf("identifier" to identifier)).await()
+    }
 
     // Check if phone number is already registered in Firestore
     suspend fun getPlumberProfile(uid: String): Plumber? {
@@ -32,82 +65,8 @@ class AuthRepository(private val context: Context) {
                 null
             }
         } catch (e: Exception) {
-            if (uid == "demo_plumber_99999") {
-                val now = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
-                Plumber(
-                    id = uid,
-                    name = "Ramesh Kumar (Plumber)",
-                    phone = "+919999999999",
-                    whatsappNumber = "+919999999999",
-                    email = "ramesh.plumber@shivagency.com",
-                    panNumber = "ABCDE1234F",
-                    panCardUrl = "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=400&q=80",
-                    aadhaarLast4 = "4821",
-                    aadhaarCardUrl = "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=400&q=80",
-                    selfieUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-                    referralCode = "SA-4821",
-                    plumberCode = "SA-4821",
-                    kycStatus = "pending",
-                    pointsBalance = 650,
-                    lifetimeEarned = 650,
-                    totalRedeemed = 0,
-                    language = "hi",
-                    pinEnabled = false,
-                    whatsappOptIn = false,
-                    createdAt = now,
-                    updatedAt = now
-                )
-            } else {
-                null
-            }
-        }
-    }
-
-    // Instant Demo Plumber Login for effortless testing without SMS/SHA-1 setup
-    suspend fun signInDemoPlumber(): Plumber {
-        val demoUid = "demo_plumber_99999"
-        prefs.edit().putString("demo_user_id", demoUid).apply()
-
-        val existing = try {
-            getPlumberProfile(demoUid)
-        } catch (e: Exception) {
             null
         }
-        if (existing != null) {
-            return existing
-        }
-
-        val now = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
-        val demoPlumber = Plumber(
-            id = demoUid,
-            name = "Ramesh Kumar (Plumber)",
-            phone = "+919999999999",
-            whatsappNumber = "+919999999999",
-            email = "ramesh.plumber@shivagency.com",
-            panNumber = "ABCDE1234F",
-            panCardUrl = "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=400&q=80",
-            aadhaarLast4 = "4821",
-            aadhaarCardUrl = "https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=400&q=80",
-            selfieUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80",
-            referralCode = "SA-4821",
-            plumberCode = "SA-4821",
-            kycStatus = "pending",
-            pointsBalance = 650,
-            lifetimeEarned = 650,
-            totalRedeemed = 0,
-            language = "hi",
-            pinEnabled = false,
-            whatsappOptIn = false,
-            createdAt = now,
-            updatedAt = now
-        )
-
-        try {
-            firestore.collection("plumbers").document(demoUid).set(demoPlumber).await()
-        } catch (e: Exception) {
-            // Non-fatal if permission denied
-        }
-        return demoPlumber
     }
 
     // Upload an image file (Aadhaar, PAN, or Selfie) to Firebase Storage
@@ -205,6 +164,43 @@ class AuthRepository(private val context: Context) {
         return plumber
     }
 
+    suspend fun submitRegistrationRequest(
+        userId: String,
+        name: String,
+        phone: String,
+        email: String,
+        address: String,
+        selfieUrl: String,
+        language: String
+    ): Plumber {
+        val plumberCode = generatePlumberCode()
+        val now = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date())
+        val applicant = Plumber(
+            id = userId,
+            name = name,
+            phone = "+91$phone",
+            whatsappNumber = "+91$phone",
+            email = email,
+            address = address,
+            selfieUrl = selfieUrl,
+            referralCode = plumberCode,
+            plumberCode = plumberCode,
+            kycStatus = "pending",
+            registrationStatus = "pending_review",
+            registrationSource = "mobile_signup",
+            pointsBalance = 0,
+            lifetimeEarned = 0,
+            totalRedeemed = 0,
+            language = language,
+            pinEnabled = false,
+            whatsappOptIn = false,
+            createdAt = now,
+            updatedAt = now
+        )
+        firestore.collection("plumbers").document(userId).set(applicant).await()
+        return applicant
+    }
+
     // Language Preference Management
     fun getSavedLanguage(): String = prefs.getString("selected_lang", "hi") ?: "hi"
 
@@ -233,7 +229,6 @@ class AuthRepository(private val context: Context) {
     }
 
     fun signOut() {
-        prefs.edit().remove("demo_user_id").apply()
         auth.signOut()
     }
 }

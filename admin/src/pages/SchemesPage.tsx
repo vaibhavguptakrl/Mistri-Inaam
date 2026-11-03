@@ -11,7 +11,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../lib/firebase'
 import { useAuth } from '../context/AuthContext'
-import type { Scheme } from '../types'
+import type { Scheme, SchemeOfferItem } from '../types'
 import {
   ShieldCheck,
   Plus,
@@ -38,6 +38,11 @@ export const SchemesPage: React.FC = () => {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [bannerUrl, setBannerUrl] = useState('')
+  const [bannerFile, setBannerFile] = useState<File | null>(null)
+  const [bannerPreviewUrl, setBannerPreviewUrl] = useState('')
+  const [offerItems, setOfferItems] = useState<Array<SchemeOfferItem & { file?: File; previewUrl?: string }>>([])
+  const [isSavingScheme, setIsSavingScheme] = useState(false)
+  const [schemeFormError, setSchemeFormError] = useState('')
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
   const [endDate, setEndDate] = useState(new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0])
   const [isActive, setIsActive] = useState(true)
@@ -66,11 +71,24 @@ export const SchemesPage: React.FC = () => {
     loadSchemes()
   }, [])
 
-  const openCreateModal = () => {
+  useEffect(() => {
+    if (bannerFile) {
+      const preview = URL.createObjectURL(bannerFile)
+      setBannerPreviewUrl(preview)
+      return () => URL.revokeObjectURL(preview)
+    }
+    setBannerPreviewUrl(bannerUrl)
+    return undefined
+  }, [bannerFile, bannerUrl])
+
+  const openCreateModal = (initialBannerUrl?: string) => {
     setEditingSchemeId(null)
     setTitle('')
     setDescription('')
-    setBannerUrl('https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=1000&q=80')
+    setBannerUrl(initialBannerUrl || 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=1000&q=80')
+    setBannerFile(null)
+    setOfferItems([])
+    setSchemeFormError('')
     setStartDate(new Date().toISOString().split('T')[0])
     setEndDate(new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0])
     setIsActive(true)
@@ -82,6 +100,9 @@ export const SchemesPage: React.FC = () => {
     setTitle(s.title)
     setDescription(s.description)
     setBannerUrl(s.bannerUrl)
+    setBannerFile(null)
+    setOfferItems((s.offerItems || []).map((item) => ({ ...item })))
+    setSchemeFormError('')
     setStartDate(s.startDate?.slice(0, 10) || '')
     setEndDate(s.endDate?.slice(0, 10) || '')
     setIsActive(s.isActive)
@@ -90,36 +111,68 @@ export const SchemesPage: React.FC = () => {
 
   const handleSaveScheme = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isOwner) return
+    if (!isOwner || isSavingScheme) return
 
     const schemeId = editingSchemeId || `scheme_${Date.now()}`
-    const schemeData: Scheme = {
-      id: schemeId,
-      title: title.trim(),
-      description: description.trim(),
-      bannerUrl: bannerUrl.trim(),
-      startDate,
-      endDate,
-      isActive,
-      createdAt: new Date().toISOString()
+    setIsSavingScheme(true)
+    setSchemeFormError('')
+    try {
+      let savedBannerUrl = bannerUrl.trim()
+      if (bannerFile) {
+        const safeFileName = bannerFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const bannerRef = ref(storage, `banners/${schemeId}_${Date.now()}_${safeFileName}`)
+        const uploaded = await uploadBytes(bannerRef, bannerFile, { contentType: bannerFile.type })
+        savedBannerUrl = await getDownloadURL(uploaded.ref)
+      }
+      if (!savedBannerUrl) {
+        setSchemeFormError('Choose a banner image or provide an image URL.')
+        return
+      }
+
+      const savedOfferItems = await Promise.all(offerItems.map(async (item, index) => {
+        let imageUrl = item.imageUrl.trim()
+        if (item.file) {
+          const safeFileName = item.file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+          const itemRef = ref(storage, `banners/${schemeId}_item_${index}_${Date.now()}_${safeFileName}`)
+          const uploaded = await uploadBytes(itemRef, item.file, { contentType: item.file.type })
+          imageUrl = await getDownloadURL(uploaded.ref)
+        }
+        return { text: item.text.trim(), imageUrl }
+      }))
+
+      const schemeData: Scheme = {
+        id: schemeId,
+        title: title.trim(),
+        description: description.trim(),
+        offerItems: savedOfferItems.filter((item) => item.text || item.imageUrl),
+        bannerUrl: savedBannerUrl,
+        startDate,
+        endDate,
+        isActive,
+        createdAt: editingSchemeId ? (schemes.find((scheme) => scheme.id === editingSchemeId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+      }
+
+      await setDoc(doc(db, 'schemes', schemeId), schemeData, { merge: true })
+
+      await addDoc(collection(db, 'auditLogs'), {
+        adminId: currentUser?.uid || '',
+        adminEmail: currentUser?.email || adminProfile?.email || 'admin',
+        action: editingSchemeId ? 'UPDATE_SCHEME' : 'CREATE_SCHEME',
+        entity: 'scheme',
+        entityId: schemeId,
+        oldValue: editingSchemeId ? schemes.find((scheme) => scheme.id === editingSchemeId) || null : null,
+        newValue: schemeData,
+        timestamp: new Date().toISOString()
+      })
+
+      setIsModalOpen(false)
+      await loadSchemes()
+    } catch (error) {
+      console.error('Could not save scheme banner:', error)
+      setSchemeFormError('The scheme could not be saved. Check the image and Firebase Storage access, then try again.')
+    } finally {
+      setIsSavingScheme(false)
     }
-
-    await setDoc(doc(db, 'schemes', schemeId), schemeData, { merge: true })
-
-    // Log audit
-    await addDoc(collection(db, 'auditLogs'), {
-      adminId: currentUser?.uid || '',
-      adminEmail: currentUser?.email || adminProfile?.email || 'admin',
-      action: editingSchemeId ? 'UPDATE_SCHEME' : 'CREATE_SCHEME',
-      entity: 'scheme',
-      entityId: schemeId,
-      oldValue: null,
-      newValue: schemeData,
-      timestamp: new Date().toISOString()
-    })
-
-    setIsModalOpen(false)
-    await loadSchemes()
   }
 
   const toggleScheme = async (s: Scheme) => {
@@ -179,7 +232,7 @@ export const SchemesPage: React.FC = () => {
             </button>
 
             <button
-              onClick={openCreateModal}
+              onClick={() => openCreateModal()}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold shadow-sm transition"
             >
               <Plus className="w-4 h-4" />
@@ -300,17 +353,84 @@ export const SchemesPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1">
-                  Banner Image URL *
+                  Banner Image *
                 </label>
+                <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 hover:border-emerald-500 hover:bg-emerald-50">
+                  <ImageIcon className="h-4 w-4 text-emerald-700" />
+                  <span>{bannerFile ? bannerFile.name : 'Upload promo or scheme image'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      if (!file) return
+                      if (!file.type.startsWith('image/')) {
+                        setSchemeFormError('Please choose an image file.')
+                        event.target.value = ''
+                        return
+                      }
+                      if (file.size > 10 * 1024 * 1024) {
+                        setSchemeFormError('Image must be 10 MB or smaller.')
+                        event.target.value = ''
+                        return
+                      }
+                      setSchemeFormError('')
+                      setBannerFile(file)
+                    }}
+                  />
+                </label>
+                <p className="mt-1 text-[11px] text-slate-500">Upload an image up to 10 MB. It will appear here and on the scheme card in the mobile app.</p>
                 <input
                   type="url"
-                  required
                   value={bannerUrl}
                   onChange={(e) => setBannerUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Or paste an image URL"
+                  disabled={Boolean(bannerFile)}
+                  className="mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-slate-100"
                 />
+                {bannerPreviewUrl && (
+                  <div className="relative mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                    <img src={bannerPreviewUrl} alt="Scheme banner preview" className="h-40 w-full object-cover" />
+                    {bannerFile && <button type="button" onClick={() => setBannerFile(null)} className="absolute right-2 top-2 rounded-md bg-white/95 px-2 py-1 text-xs font-semibold text-slate-700 shadow">Use URL instead</button>}
+                  </div>
+                )}
+                {schemeFormError && <p role="alert" className="mt-2 text-xs font-medium text-rose-700">{schemeFormError}</p>}
               </div>
+
+              <section className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800">Offer items</h3>
+                    <p className="text-xs text-slate-500">Add text and an optional product image to each row.</p>
+                  </div>
+                  <button type="button" onClick={() => setOfferItems((items) => [...items, { text: '', imageUrl: '' }])} className="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">+ Add line</button>
+                </div>
+                {offerItems.map((item, index) => (
+                  <div key={index} className="grid grid-cols-[1fr_auto] gap-2 rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="space-y-2">
+                      <input value={item.text} onChange={(event) => setOfferItems((items) => items.map((entry, i) => i === index ? { ...entry, text: event.target.value } : entry))} placeholder={`Offer item ${index + 1} text`} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                      <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-emerald-700">
+                        <ImageIcon className="h-4 w-4" />
+                        <span>{item.file?.name || (item.imageUrl ? 'Change item image' : 'Upload item image (optional)')}</span>
+                        <input type="file" accept="image/*" className="sr-only" onChange={(event) => {
+                          const file = event.target.files?.[0]
+                          if (!file) return
+                          if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+                            setSchemeFormError('Choose an image file up to 10 MB.')
+                            event.target.value = ''
+                            return
+                          }
+                          setSchemeFormError('')
+                          setOfferItems((items) => items.map((entry, i) => i === index ? { ...entry, file, previewUrl: URL.createObjectURL(file) } : entry))
+                        }} />
+                      </label>
+                      {(item.previewUrl || item.imageUrl) && <img src={item.previewUrl || item.imageUrl} alt={`Offer item ${index + 1}`} className="h-24 w-full rounded-md object-cover" />}
+                    </div>
+                    <button type="button" aria-label={`Delete offer item ${index + 1}`} onClick={() => setOfferItems((items) => items.filter((_, i) => i !== index))} className="self-start rounded-lg p-2 text-rose-600 hover:bg-rose-50"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                ))}
+              </section>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -362,9 +482,10 @@ export const SchemesPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold shadow-sm"
+                  disabled={isSavingScheme}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-semibold shadow-sm disabled:cursor-wait disabled:opacity-60"
                 >
-                  Save Scheme
+                  {isSavingScheme ? 'Uploading & Saving…' : 'Save Scheme'}
                 </button>
               </div>
             </form>
@@ -415,9 +536,8 @@ export const SchemesPage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     if (aiGeneratedImageUrl) {
-                      setBannerUrl(aiGeneratedImageUrl)
                       setIsAiModalOpen(false)
-                      openCreateModal()
+                      openCreateModal(aiGeneratedImageUrl)
                     }
                   }}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition"

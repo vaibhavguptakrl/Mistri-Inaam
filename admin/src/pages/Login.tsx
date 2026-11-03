@@ -52,9 +52,7 @@ export const Login: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 items-center justify-center font-black text-white text-2xl shadow-lg mb-3">
-          SA
-        </div>
+        <img src="/logo.png" alt="Shiv Agency Karauli Admin Panel" className="mx-auto w-32 h-32 rounded-2xl object-contain bg-white shadow-lg mb-3" />
         <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
           Shiv Agency Rewards
         </h2>

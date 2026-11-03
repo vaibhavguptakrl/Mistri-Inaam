@@ -4,7 +4,25 @@ android/node_modules/
 backend/node_modules/
 frontend/node_modules/
 node_modules/
+**/node_modules/
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.sample
+.firebase/
+functions/.env.sa-mistri-inaam
+authFunctions/node_modules/
+authFunctions/.env.*
 # Android build artifacts
 android/app/build/
 android/app/.gradle/
 android/app/.cxx/
+android/.gradle/
+android/.kotlin/
+android/.idea/
+android/local.properties
+android/upload-keystore*.jks
+android/upload-keystore*.keystore
+android/keystore.properties
+*.apk
+PLAY_STORE_LAUNCH_PENDING_WORKS.docx

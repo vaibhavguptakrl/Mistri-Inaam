@@ -11,12 +11,14 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
 
-    // Admin helper: check if document exists in admins collection or custom claim
+    // An admin record only grants access when its role is explicitly authorized.
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.role == 'owner' ||
         request.auth.token.role == 'staff' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+          (get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'owner' ||
+           get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'staff'))
       );
     }
 
@@ -29,18 +31,23 @@ service cloud.firestore {
     }
 
     // Admins collection
+    match /memberPhoneIndex/{phoneHash} {
+      allow read, write: if false;
+    }
+
     match /admins/{adminId} {
-      allow read: if isAuthenticated();
-      allow write: if isOwner() || (!exists(/databases/$(database)/documents/admins/$(adminId)) && isUser(adminId));
+      allow read: if isAdmin() || isUser(adminId);
+      allow write: if isOwner();
     }
 
     // Plumbers collection
     match /plumbers/{plumberId} {
-      // Plumbers can read profiles for leaderboard and referral verification; admins can read all
-      allow read: if isAuthenticated() || isAdmin();
+      // Full profiles contain contact and KYC fields; only the owner and staff can read all profiles.
+      // Members may read only their own profile. Leaderboard/referral views use callable projections.
+      allow read: if isAdmin() || isUser(plumberId);
       
       // Plumber can create their initial profile upon Phone Auth registration
-      allow create: if (isUser(plumberId) || plumberId == 'demo_plumber_99999')
+      allow create: if isUser(plumberId)
         && request.resource.data.kycStatus == 'pending'
         && request.resource.data.pointsBalance >= 0;
         
@@ -50,6 +57,7 @@ service cloud.firestore {
         isUser(plumberId)
         && request.resource.data.pointsBalance == resource.data.pointsBalance
         && request.resource.data.kycStatus == resource.data.kycStatus
+        && request.resource.data.accountStatus == resource.data.accountStatus
         && request.resource.data.plumberCode == resource.data.plumberCode
       );
 
@@ -61,12 +69,12 @@ service cloud.firestore {
       // Plumbers can only read transactions addressed to them; Admins can read all
       allow read: if isAdmin() || (
         isAuthenticated() && resource.data.plumberId == request.auth.uid
-      ) || resource.data.plumberId == 'demo_plumber_99999';
+      );
 
       // Transactions are written by admins, or welcome bonus on registration
       allow create: if isAdmin() || (
         isAuthenticated() && request.resource.data.plumberId == request.auth.uid && request.resource.data.type == 'welcome_bonus'
-      ) || request.resource.data.plumberId == 'demo_plumber_99999';
+      );
 
       allow update, delete: if isOwner();
     }
@@ -75,12 +83,11 @@ service cloud.firestore {
     match /redemptionRequests/{requestId} {
       allow read: if isAdmin() || (
         isAuthenticated() && resource.data.plumberId == request.auth.uid
-      ) || resource.data.plumberId == 'demo_plumber_99999';
+      );
 
       // Plumbers can create requests for themselves in pending status
       allow create: if (
-        (isAuthenticated() && request.resource.data.plumberId == request.auth.uid) ||
-        request.resource.data.plumberId == 'demo_plumber_99999'
+        isAuthenticated() && request.resource.data.plumberId == request.auth.uid
       ) && request.resource.data.status == 'pending';
 
       // Only admins can approve, reject, or mark paid
@@ -124,7 +131,9 @@ service cloud.firestore {
 
     // App Settings (general, features, whatsapp, etc.)
     match /appSettings/{settingDoc} {
-      allow read: if isAuthenticated();
+      // Maintenance status is a public, non-sensitive app availability flag and
+      // must be readable before members sign in so maintenance can cover login/signup.
+      allow read: if isAuthenticated() || settingDoc == 'maintenance';
       allow write: if isOwner();
     }
 
@@ -146,6 +155,13 @@ service cloud.firestore {
     // Message templates for Push & WhatsApp
     match /messageTemplates/{templateId} {
       allow read, write: if isAdmin();
+    }
+
+    // Deletion requests are created only by the authenticated callable function.
+    // Users can see their own request status; staff can review and process requests.
+    match /accountDeletionRequests/{uid} {
+      allow read: if isAdmin() || isUser(uid);
+      allow write: if false;
     }
 
     // Audit logs of all admin actions

@@ -13,6 +13,8 @@
     <string name="enter_otp">Enter 6-digit OTP</string>
     <string name="verify_otp">Verify &amp; Continue</string>
     <string name="resend_otp">Resend OTP</string>
+    <string name="google_sign_in">Continue with Google</string>
+    <string name="google_web_client_id"></string>
 
     <!-- Registration & KYC -->
     <string name="register_title">Contractor Registration</string>

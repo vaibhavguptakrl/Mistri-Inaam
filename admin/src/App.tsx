@@ -6,6 +6,7 @@ import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Plumbers } from './pages/Plumbers'
+import { RegistrationsPage } from './pages/RegistrationsPage'
 import { PointsRules } from './pages/PointsRules'
 import { AddPoints } from './pages/AddPoints'
 import { SettingsPage } from './pages/SettingsPage'
@@ -14,6 +15,9 @@ import { SchemesPage } from './pages/SchemesPage'
 import { RedemptionsPage } from './pages/RedemptionsPage'
 import { MessageLogPage } from './pages/MessageLogPage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
+import { DeleteAccountPage } from './pages/DeleteAccountPage'
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
+import { DeletionRequestsPage } from './pages/DeletionRequestsPage'
 
 export const App: React.FC = () => {
   return (
@@ -21,6 +25,8 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/delete-account" element={<DeleteAccountPage />} />
           <Route
             path="/*"
             element={
@@ -29,6 +35,8 @@ export const App: React.FC = () => {
                   <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/plumbers" element={<Plumbers />} />
+                    <Route path="/registrations" element={<RegistrationsPage />} />
+                    <Route path="/deletion-requests" element={<DeletionRequestsPage />} />
                     <Route path="/add-points" element={<AddPoints />} />
                     <Route path="/rules" element={<PointsRules />} />
                     <Route path="/schemes" element={<SchemesPage />} />

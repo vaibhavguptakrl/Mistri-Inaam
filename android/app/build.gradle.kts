@@ -5,16 +5,28 @@ plugins {
     id("com.google.gms.google-services")
 }
 
+val signingVariables = listOf(
+    "PLAY_UPLOAD_KEYSTORE_PATH",
+    "PLAY_UPLOAD_KEYSTORE_PASSWORD",
+    "PLAY_UPLOAD_KEY_ALIAS",
+    "PLAY_UPLOAD_KEY_PASSWORD",
+)
+val providedSigningVariables = signingVariables.filter { !System.getenv(it).isNullOrBlank() }
+if (providedSigningVariables.isNotEmpty() && providedSigningVariables.size != signingVariables.size) {
+    error("For a signed release, set all four PLAY_UPLOAD_* environment variables in the current build session.")
+}
+val releaseSigningConfigured = providedSigningVariables.size == signingVariables.size
+
 android {
     namespace = "com.shivagency.rewards"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.shivagency.rewards"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        targetSdk = 36
+        versionCode = 5
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -22,9 +34,23 @@ android {
         }
     }
 
+    if (releaseSigningConfigured) {
+        signingConfigs {
+            create("release") {
+                storeFile = rootProject.file(System.getenv("PLAY_UPLOAD_KEYSTORE_PATH"))
+                storePassword = System.getenv("PLAY_UPLOAD_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("PLAY_UPLOAD_KEY_ALIAS")
+                keyPassword = System.getenv("PLAY_UPLOAD_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -52,6 +78,7 @@ dependencies {
     // AndroidX & Kotlin Core
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.activity:activity-compose:1.10.0")
 
     // Jetpack Compose BOM
@@ -76,6 +103,8 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.firebase:firebase-functions-ktx")
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
 
     // Image loading with Coil
     implementation("io.coil-kt:coil-compose:2.7.0")
@@ -87,6 +116,8 @@ dependencies {
     implementation("androidx.camera:camera-camera2:1.4.1")
     implementation("androidx.camera:camera-lifecycle:1.4.1")
     implementation("androidx.camera:camera-view:1.4.1")
+    implementation("com.google.guava:guava:33.4.0-android")
+    implementation("com.google.mlkit:face-detection:16.1.7")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")

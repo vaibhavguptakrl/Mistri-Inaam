@@ -6,22 +6,24 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    // Check if the caller is an admin via custom token or document lookup
+    // Admin records grant access only for explicit owner/staff roles.
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.role == 'owner' ||
         request.auth.token.role == 'staff' ||
-        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+        (firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
+          (firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role == 'owner' ||
+           firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role == 'staff'))
       );
     }
 
     // KYC documents (Aadhaar photo, PAN photo, Selfie)
-    // Plumbers can upload their own files; only Admins can view or download them.
+    // Members can upload and read only files under their own UID; owner/staff can review all KYC files.
     match /kyc/{plumberId}/{fileName} {
       allow write: if isAuthenticated() && request.auth.uid == plumberId
                    && request.resource.size < 10 * 1024 * 1024 // 10MB limit
                    && request.resource.contentType.matches('image/.*');
-      allow read: if isAdmin();
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == plumberId);
       allow delete: if isAdmin();
     }
 

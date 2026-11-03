@@ -21,17 +21,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 import com.shivagency.rewards.data.model.GeneralSettings
 import com.shivagency.rewards.data.model.Plumber
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 
 data class PlumberRankItem(
-    val id: String,
     val name: String,
     val plumberCode: String,
     val pointsThisMonth: Long,
-    val lifetimeEarned: Long
+    val isCurrentUser: Boolean
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +43,7 @@ fun LeaderboardScreen(
     onBack: () -> Unit
 ) {
     val firestore = remember { FirebaseFirestore.getInstance() }
+    val functions = remember { FirebaseFunctions.getInstance("asia-south1") }
     var rankings by remember { mutableStateOf<List<PlumberRankItem>>(emptyList()) }
     var generalSettings by remember { mutableStateOf(GeneralSettings()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -61,77 +63,26 @@ fun LeaderboardScreen(
                 }
             }
 
-        // 2. Query transactions for the current month to calculate monthly points
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        val startOfMonthIso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).format(calendar.time)
-
-        // Fetch plumbers first
-        firestore.collection("plumbers").get()
-            .addOnSuccessListener { plumbersSnap ->
-                val plumberMap = mutableMapOf<String, Plumber>()
-                for (d in plumbersSnap.documents) {
-                    val p = d.toObject(Plumber::class.java)
-                    if (p != null) plumberMap[d.id] = p.copy(id = d.id)
-                }
-
-                // Fetch monthly transactions
-                firestore.collection("transactions")
-                    .whereGreaterThanOrEqualTo("createdAt", startOfMonthIso)
-                    .get()
-                    .addOnSuccessListener { txSnap ->
-                        val monthlyPoints = mutableMapOf<String, Long>()
-                        for (d in txSnap.documents) {
-                            val plumberId = d.getString("plumberId") ?: ""
-                            val pts = d.getLong("points") ?: 0L
-                            if (pts > 0 && plumberId.isNotEmpty()) {
-                                monthlyPoints[plumberId] = (monthlyPoints[plumberId] ?: 0L) + pts
-                            }
-                        }
-
-                        val list = mutableListOf<PlumberRankItem>()
-                        for ((id, p) in plumberMap) {
-                            val pts = monthlyPoints[id] ?: (p.pointsBalance.coerceAtMost(p.lifetimeEarned))
-                            list.add(
-                                PlumberRankItem(
-                                    id = id,
-                                    name = p.name,
-                                    plumberCode = p.plumberCode,
-                                    pointsThisMonth = pts,
-                                    lifetimeEarned = p.lifetimeEarned
-                                )
-                            )
-                        }
-
-                        // Sort descending by monthly points
-                        list.sortByDescending { it.pointsThisMonth }
-                        rankings = list
-                        isLoading = false
-                    }
-                    .addOnFailureListener {
-                        // Fallback: rank by lifetime / current points if transaction query index is pending
-                        val fallbackList = plumberMap.values.map { p ->
-                            PlumberRankItem(
-                                id = p.id,
-                                name = p.name,
-                                plumberCode = p.plumberCode,
-                                pointsThisMonth = p.pointsBalance,
-                                lifetimeEarned = p.lifetimeEarned
-                            )
-                        }.sortedByDescending { it.pointsThisMonth }
-                        rankings = fallbackList
-                        isLoading = false
-                    }
+        try {
+            val payload = functions.getHttpsCallable("getPublicLeaderboard").call().await().getData() as? Map<*, *>
+            val entries = payload?.get("entries") as? List<*> ?: emptyList<Any>()
+            rankings = entries.mapNotNull { entry ->
+                val row = entry as? Map<*, *> ?: return@mapNotNull null
+                PlumberRankItem(
+                    name = row["name"] as? String ?: "Plumber",
+                    plumberCode = row["plumberCode"] as? String ?: "",
+                    pointsThisMonth = (row["pointsThisMonth"] as? Number)?.toLong() ?: 0L,
+                    isCurrentUser = row["isCurrentUser"] as? Boolean ?: false
+                )
             }
-            .addOnFailureListener {
-                isLoading = false
-            }
+        } catch (_: Exception) {
+            rankings = emptyList()
+        } finally {
+            isLoading = false
+        }
     }
 
-    val userRankIndex = rankings.indexOfFirst { it.id == currentPlumber.id }
+    val userRankIndex = rankings.indexOfFirst { it.isCurrentUser }
     val userRank = if (userRankIndex >= 0) userRankIndex + 1 else "-"
     val top1 = rankings.getOrNull(0)
     val top2 = rankings.getOrNull(1)
@@ -144,8 +95,9 @@ fun LeaderboardScreen(
                     Column {
                         Text(
                             text = if (isHindi) "मासिक चैंपियन लीडरबोर्ड" else "Monthly Plumber Champions",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 18.sp,
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
                         )
                         Text(
                             text = currentMonthName,
@@ -357,7 +309,7 @@ fun LeaderboardScreen(
             // Plumbers List
             itemsIndexed(rankings) { index, item ->
                 val rank = index + 1
-                val isMe = item.id == currentPlumber.id
+                val isMe = item.isCurrentUser
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
