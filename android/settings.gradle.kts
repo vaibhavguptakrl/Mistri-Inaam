@@ -20,4 +20,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "ShivAgencyRewards"
-include(":app")
+include(":app", ":ludo")

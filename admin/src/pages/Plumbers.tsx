@@ -4,15 +4,13 @@ import {
   getDocs,
   doc,
   updateDoc,
-  query,
-  where,
-  orderBy,
   addDoc
 } from 'firebase/firestore'
 import { db, functions } from '../lib/firebase'
 import { httpsCallable } from 'firebase/functions'
 import { useAuth } from '../context/AuthContext'
-import type { Plumber, Transaction, KYCStatus } from '../types'
+import type { Plumber, KYCStatus } from '../types'
+import { MemberStatement } from '../components/MemberStatement'
 import {
   Users,
   Search,
@@ -24,7 +22,6 @@ import {
   CheckCircle,
   XCircle,
   ExternalLink,
-  ReceiptText,
   HardHat,
   Filter,
   Lock,
@@ -44,8 +41,6 @@ export const Plumbers: React.FC = () => {
   const [selectedPlumber, setSelectedPlumber] = useState<Plumber | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [isRejecting, setIsRejecting] = useState(false)
-  const [statement, setStatement] = useState<Transaction[]>([])
-  const [loadingStatement, setLoadingStatement] = useState(false)
   const [updatingBlockId, setUpdatingBlockId] = useState<string | null>(null)
   const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null)
 
@@ -109,35 +104,10 @@ export const Plumbers: React.FC = () => {
     loadPlumbers()
   }, [])
 
-  const loadStatement = async (plumberId: string) => {
-    try {
-      setLoadingStatement(true)
-      const q = query(
-        collection(db, 'transactions'),
-        where('plumberId', '==', plumberId),
-        orderBy('createdAt', 'desc')
-      )
-      const snap = await getDocs(q)
-      const txs: Transaction[] = []
-      snap.forEach(d => txs.push({ ...d.data(), id: d.id } as Transaction))
-      setStatement(txs)
-    } catch (err) {
-      console.error('Error loading statement:', err)
-      // Fallback if composite index is building: simple query
-      const snap = await getDocs(query(collection(db, 'transactions'), where('plumberId', '==', plumberId)))
-      const txs: Transaction[] = []
-      snap.forEach(d => txs.push({ ...d.data(), id: d.id } as Transaction))
-      setStatement(txs)
-    } finally {
-      setLoadingStatement(false)
-    }
-  }
-
   const openProfileModal = (plumber: Plumber) => {
     setSelectedPlumber(plumber)
     setIsRejecting(false)
     setRejectionReason('')
-    loadStatement(plumber.id)
   }
 
   const handleUpdateKyc = async (status: KYCStatus) => {
@@ -566,39 +536,7 @@ export const Plumbers: React.FC = () => {
               </div>
             </div>
 
-            {/* Plumber Statement History */}
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-                <ReceiptText className="w-4 h-4 text-emerald-600" />
-                <span>Points Transaction Statement ({statement.length})</span>
-              </h3>
-
-              {loadingStatement ? (
-                <div className="p-4 text-center text-xs text-slate-400">Loading ledger statement...</div>
-              ) : statement.length === 0 ? (
-                <div className="p-4 rounded-lg bg-slate-50 text-center text-xs text-slate-400">
-                  No points transactions recorded for this contractor yet.
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden max-h-60 overflow-y-auto text-xs">
-                  {statement.map(tx => (
-                    <div key={tx.id} className="p-3 bg-white hover:bg-slate-50 flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-slate-800 capitalize">
-                          {tx.type.replace('_', ' ')}
-                          {tx.billNumber && <span className="text-slate-400 ml-1.5 font-mono">Bill #{tx.billNumber}</span>}
-                        </div>
-                        <div className="text-[11px] text-slate-400">{new Date(tx.createdAt).toLocaleDateString()}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold text-emerald-600">+{tx.points} pts</div>
-                        <div className="text-[11px] text-slate-500">₹{tx.rupeeValue} worth</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <MemberStatement plumber={selectedPlumber} />
           </div>
         </div>
       )}

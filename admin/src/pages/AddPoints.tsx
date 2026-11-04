@@ -15,6 +15,7 @@ import type { Plumber, PointRule, Category, Brand, GeneralSettings, FeatureContr
 import { defaultGeneralSettings, defaultFeatureControls } from '../lib/seed'
 import { evaluateBill, CalculationInputLine } from '../lib/pointCalculator'
 import { queueNotification } from '../lib/notificationQueue'
+import { MemberStatement } from '../components/MemberStatement'
 import {
   PlusCircle,
   Trash2,
@@ -77,6 +78,7 @@ export const AddPoints: React.FC = () => {
 
   // Confirmation Modal
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false)
+  const [showStatementModal, setShowStatementModal] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -451,15 +453,20 @@ export const AddPoints: React.FC = () => {
             </div>
 
             {selectedPlumber && (
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between text-xs">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div>
                   <span className="text-slate-500">Contractor: </span>
                   <span className="font-bold text-slate-800">{selectedPlumber.name}</span>
                   <span className="text-slate-400 ml-2 font-mono">({selectedPlumber.phone})</span>
                 </div>
-                <div>
-                  <span className="text-slate-500">Current Balance: </span>
-                  <span className="font-bold text-emerald-700">{selectedPlumber.pointsBalance} pts</span>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <span className="text-slate-500">Current Balance: </span>
+                    <span className="font-bold text-emerald-700">{selectedPlumber.pointsBalance} pts</span>
+                  </div>
+                  <button onClick={() => setShowStatementModal(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-3 py-2 font-semibold text-emerald-800 hover:bg-emerald-50">
+                    <FileText className="h-3.5 w-3.5" />Statement
+                  </button>
                 </div>
               </div>
             )}
@@ -734,6 +741,14 @@ export const AddPoints: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showStatementModal && selectedPlumber && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
+            <MemberStatement plumber={selectedPlumber} onClose={() => setShowStatementModal(false)} />
+          </div>
+        </div>
+      )}
 
       {/* CONFIRMATION MODAL */}
       {isConfirmModalOpen && selectedPlumber && (

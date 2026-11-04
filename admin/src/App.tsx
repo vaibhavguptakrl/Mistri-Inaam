@@ -18,6 +18,7 @@ import { PlaceholderPage } from './pages/PlaceholderPage'
 import { DeleteAccountPage } from './pages/DeleteAccountPage'
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 import { DeletionRequestsPage } from './pages/DeletionRequestsPage'
+import { LoginShowcasePage } from './pages/LoginShowcasePage'
 
 export const App: React.FC = () => {
   return (
@@ -44,6 +45,7 @@ export const App: React.FC = () => {
                     <Route path="/messages" element={<MessageLogPage />} />
                     <Route path="/settings" element={<SettingsPage />} />
                     <Route path="/features" element={<FeatureControlsPage />} />
+                    <Route path="/login-showcase" element={<LoginShowcasePage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Layout>

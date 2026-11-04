@@ -11,14 +11,12 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
 
-    // An admin record only grants access when its role is explicitly authorized.
+    // Only the explicitly provisioned owner account can administer the project.
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.role == 'owner' ||
-        request.auth.token.role == 'staff' ||
         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
-          (get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'owner' ||
-           get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'staff'))
+          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'owner')
       );
     }
 
@@ -37,7 +35,8 @@ service cloud.firestore {
 
     match /admins/{adminId} {
       allow read: if isAdmin() || isUser(adminId);
-      allow write: if isOwner();
+      // Provision the single owner account through trusted Firebase administration.
+      allow write: if false;
     }
 
     // Plumbers collection
@@ -133,7 +132,7 @@ service cloud.firestore {
     match /appSettings/{settingDoc} {
       // Maintenance status is a public, non-sensitive app availability flag and
       // must be readable before members sign in so maintenance can cover login/signup.
-      allow read: if isAuthenticated() || settingDoc == 'maintenance';
+      allow read: if isAuthenticated() || settingDoc == 'maintenance' || settingDoc == 'loginShowcase';
       allow write: if isOwner();
     }
 

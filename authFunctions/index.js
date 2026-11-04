@@ -76,7 +76,7 @@ exports.registerMemberAccount = onCall({ region: "asia-south1" }, async (request
 exports.setMemberBlocked = onCall({ region: "asia-south1" }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "Admin sign-in required.");
   const caller = await db.collection("admins").doc(request.auth.uid).get();
-  if (!caller.exists || !["owner", "staff"].includes(caller.get("role"))) {
+  if (!caller.exists || caller.get("role") !== "owner") {
     throw new HttpsError("permission-denied", "Admin permission required.");
   }
   const uid = String(request.data?.plumberId || "");

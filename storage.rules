@@ -6,19 +6,17 @@ service firebase.storage {
       return request.auth != null;
     }
 
-    // Admin records grant access only for explicit owner/staff roles.
+    // Only the explicitly provisioned owner account can administer storage.
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.role == 'owner' ||
-        request.auth.token.role == 'staff' ||
         (firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid)) &&
-          (firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role == 'owner' ||
-           firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role == 'staff'))
+          firestore.get(/databases/(default)/documents/admins/$(request.auth.uid)).data.role == 'owner')
       );
     }
 
     // KYC documents (Aadhaar photo, PAN photo, Selfie)
-    // Members can upload and read only files under their own UID; owner/staff can review all KYC files.
+    // Members can upload and read only files under their own UID; the owner can review all KYC files.
     match /kyc/{plumberId}/{fileName} {
       allow write: if isAuthenticated() && request.auth.uid == plumberId
                    && request.resource.size < 10 * 1024 * 1024 // 10MB limit

@@ -3,10 +3,9 @@ import {
   User,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
-  onAuthStateChanged,
-  createUserWithEmailAndPassword
+  onAuthStateChanged
 } from 'firebase/auth'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 import type { AdminUser } from '../types'
 
@@ -15,7 +14,6 @@ interface AuthContextType {
   adminProfile: AdminUser | null
   loading: boolean
   signIn: (email: string, pass: string) => Promise<void>
-  createInitialOwner: (email: string, pass: string, name: string) => Promise<void>
   signOut: () => Promise<void>
   isOwner: boolean
 }
@@ -33,22 +31,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (user) {
         try {
           const adminDoc = await getDoc(doc(db, 'admins', user.uid))
-          if (adminDoc.exists()) {
-            setAdminProfile(adminDoc.data() as AdminUser)
+          const profile = adminDoc.exists() ? adminDoc.data() as AdminUser : null
+          if (!profile || profile.role !== 'owner') {
+            setAdminProfile(null)
+            await firebaseSignOut(auth)
           } else {
-            // Default to owner for first admin if doc doesn't exist
-            const newAdmin: AdminUser = {
-              uid: user.uid,
-              email: user.email || '',
-              displayName: user.displayName || 'Store Admin',
-              role: 'owner',
-              createdAt: new Date().toISOString()
-            }
-            await setDoc(doc(db, 'admins', user.uid), newAdmin, { merge: true })
-            setAdminProfile(newAdmin)
+            setAdminProfile(profile)
           }
         } catch (err) {
           console.error('Failed to load admin profile:', err)
+          setAdminProfile(null)
+          await firebaseSignOut(auth)
         }
       } else {
         setAdminProfile(null)
@@ -60,20 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const signIn = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email, pass)
-  }
-
-  const createInitialOwner = async (email: string, pass: string, name: string) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass)
-    const newAdmin: AdminUser = {
-      uid: cred.user.uid,
-      email: cred.user.email || email,
-      displayName: name,
-      role: 'owner',
-      createdAt: new Date().toISOString()
+    const credential = await signInWithEmailAndPassword(auth, email, pass)
+    const adminDoc = await getDoc(doc(db, 'admins', credential.user.uid))
+    const profile = adminDoc.exists() ? adminDoc.data() as AdminUser : null
+    if (!profile || profile.role !== 'owner') {
+      await firebaseSignOut(auth)
+      const error = new Error('This account is not authorized for the admin panel.') as Error & { code: string }
+      error.code = 'admin/not-authorized'
+      throw error
     }
-    await setDoc(doc(db, 'admins', cred.user.uid), newAdmin)
-    setAdminProfile(newAdmin)
   }
 
   const signOut = async () => {
@@ -87,7 +75,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         adminProfile,
         loading,
         signIn,
-        createInitialOwner,
         signOut,
         isOwner: adminProfile?.role === 'owner'
       }}

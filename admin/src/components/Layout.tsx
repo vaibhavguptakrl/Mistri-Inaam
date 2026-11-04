@@ -15,6 +15,7 @@ import {
   LogOut,
   UserCheck,
   Trash2,
+  Images,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { collection, onSnapshot } from 'firebase/firestore'
@@ -49,6 +50,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
     { name: 'Message Queue', path: '/messages', icon: MessageSquare },
     { name: 'Settings', path: '/settings', icon: Settings },
     { name: 'Feature Controls', path: '/features', icon: ToggleLeft },
+    { name: 'Login Product Slider', path: '/login-showcase', icon: Images },
   ]
 
   const isActive = (path: string) => {

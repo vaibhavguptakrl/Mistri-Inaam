@@ -2,6 +2,9 @@ package com.shivagency.rewards.ui.screens.login
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -16,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -29,6 +33,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.platform.LocalContext
 import com.shivagency.rewards.R
 import com.shivagency.rewards.data.repository.AuthRepository
+import com.google.firebase.firestore.FirebaseFirestore
+import coil.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -50,6 +57,35 @@ fun LoginScreen(
     var resetIdentifier by remember { mutableStateOf("") }
     var resetMessage by remember { mutableStateOf<String?>(null) }
     var resetLoading by remember { mutableStateOf(false) }
+    var showcaseEnabled by remember { mutableStateOf(false) }
+    var showcaseItems by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    val showcaseListState = rememberLazyListState()
+
+    DisposableEffect(Unit) {
+        val registration = FirebaseFirestore.getInstance().collection("appSettings").document("loginShowcase")
+            .addSnapshotListener { snapshot, _ ->
+                if (snapshot != null && snapshot.exists()) {
+                    showcaseEnabled = snapshot.getBoolean("enabled") == true
+                    showcaseItems = (snapshot.get("items") as? List<*>)?.mapNotNull { raw ->
+                        val item = raw as? Map<*, *> ?: return@mapNotNull null
+                        val imageUrl = item["imageUrl"] as? String ?: return@mapNotNull null
+                        if (imageUrl.isBlank()) null else (item["title"] as? String).orEmpty() to imageUrl
+                    } ?: emptyList()
+                }
+            }
+        onDispose { registration.remove() }
+    }
+
+    LaunchedEffect(showcaseEnabled, showcaseItems.size) {
+        if (showcaseEnabled && showcaseItems.size > 1) {
+            var index = 0
+            while (true) {
+                delay(2400)
+                index = (index + 1) % showcaseItems.size
+                showcaseListState.animateScrollToItem(index)
+            }
+        }
+    }
 
     Surface(Modifier.fillMaxSize(), color = Color(0xFFFAF9F6)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -61,6 +97,28 @@ fun LoginScreen(
             Text("SHIV AGENCY ELITE", fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Color(0xFF142B4F), modifier = Modifier.padding(top = 12.dp))
             Text(if (isHindi) "रिवॉर्ड्स क्लब • करौली" else "REWARDS CLUB • KARAULI", color = Color(0xFF775A00), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
             Spacer(Modifier.height(24.dp))
+            if (showcaseEnabled && showcaseItems.isNotEmpty()) {
+                LazyRow(
+                    state = showcaseListState,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 2.dp)
+                ) {
+                    items(showcaseItems) { (title, imageUrl) ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(112.dp)) {
+                            Card(shape = RoundedCornerShape(14.dp)) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(imageUrl),
+                                    contentDescription = title.ifBlank { "Product" },
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(width = 112.dp, height = 74.dp)
+                                )
+                            }
+                            if (title.isNotBlank()) Text(title, color = Color(0xFF4E4635), fontSize = 10.sp, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                }
+            }
             Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(13.dp)) {
                     Text(if (isHindi) "अपने खाते में लॉगिन करें" else "Sign in to your account", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1A1C1A))
@@ -87,7 +145,7 @@ fun LoginScreen(
                 }
             }
             Text(if (isHindi) "खाता स्वीकृत होने के बाद ही डैशबोर्ड खुलेगा।" else "Dashboard access is available after admin approval.", textAlign = TextAlign.Center, color = Color(0xFF6B6254), fontSize = 11.sp, modifier = Modifier.padding(top = 18.dp))
-            Text("07464-220000 • Karauli, Rajasthan", color = Color(0xFF775A00), fontSize = 11.sp, modifier = Modifier.padding(top = 18.dp, bottom = 18.dp))
+            Text("Support: Shiv Agency • 8505006453", color = Color(0xFF775A00), fontSize = 11.sp, modifier = Modifier.padding(top = 18.dp, bottom = 18.dp))
         }
     }
 

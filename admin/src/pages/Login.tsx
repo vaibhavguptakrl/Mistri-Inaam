@@ -1,17 +1,15 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { Lock, Mail, User, ShieldCheck, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { Lock, Mail, ShieldCheck, AlertCircle, ArrowRight } from 'lucide-react'
 import { isFirebaseConfigured } from '../lib/firebase'
 
 export const Login: React.FC = () => {
-  const { signIn, createInitialOwner, currentUser } = useAuth()
+  const { signIn, currentUser } = useAuth()
   const navigate = useNavigate()
 
-  const [isRegistering, setIsRegistering] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -26,22 +24,15 @@ export const Login: React.FC = () => {
     setLoading(true)
 
     try {
-      if (isRegistering) {
-        if (!name.trim()) throw new Error('Please enter your full name')
-        await createInitialOwner(email, password, name)
-      } else {
-        await signIn(email, password)
-      }
+      await signIn(email, password)
       navigate('/')
     } catch (err: any) {
       console.error(err)
       let msg = err.message || 'Authentication failed'
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
         msg = 'Invalid email or password'
-      } else if (err.code === 'auth/email-already-in-use') {
-        msg = 'An account with this email already exists. Please log in.'
-      } else if (err.code === 'auth/weak-password') {
-        msg = 'Password should be at least 6 characters'
+      } else if (err.code === 'admin/not-authorized') {
+        msg = 'This account is not authorized for the admin panel.'
       }
       setError(msg)
     } finally {
@@ -57,37 +48,13 @@ export const Login: React.FC = () => {
           Shiv Agency Rewards
         </h2>
         <p className="mt-1 text-sm text-slate-600">
-          Owner &amp; Staff Admin Portal — Karauli, Rajasthan
+          Single Owner Admin Portal — Karauli, Rajasthan
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
         <div className="bg-white py-8 px-6 shadow-md rounded-2xl border border-slate-200 sm:px-10">
-          {/* Header mode tabs */}
-          <div className="flex border-b border-slate-200 mb-6">
-            <button
-              type="button"
-              onClick={() => { setIsRegistering(false); setError(null) }}
-              className={`pb-3 text-sm font-semibold flex-1 text-center border-b-2 transition ${
-                !isRegistering
-                  ? 'border-emerald-600 text-emerald-700'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Sign In (लॉगिन)
-            </button>
-            <button
-              type="button"
-              onClick={() => { setIsRegistering(true); setError(null) }}
-              className={`pb-3 text-sm font-semibold flex-1 text-center border-b-2 transition ${
-                isRegistering
-                  ? 'border-emerald-600 text-emerald-700'
-                  : 'border-transparent text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              Create Owner Account (नया खाता)
-            </button>
-          </div>
+          <h3 className="mb-6 border-b border-slate-200 pb-3 text-center text-sm font-semibold text-emerald-700">Admin Sign In (लॉगिन)</h3>
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5 text-sm text-red-700">
@@ -103,27 +70,6 @@ export const Login: React.FC = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {isRegistering && (
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Full Name (पूरा नाम)
-                </label>
-                <div className="mt-1 relative rounded-lg shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-4 w-4 text-slate-400" />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Ramesh Kumar"
-                    className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-emerald-500 focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-            )}
-
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                 Email Address (ईमेल)
@@ -172,7 +118,7 @@ export const Login: React.FC = () => {
                   <span>Please wait...</span>
                 ) : (
                   <>
-                    <span>{isRegistering ? 'Create Owner Account' : 'Sign In to Dashboard'}</span>
+                    <span>Sign In to Dashboard</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -183,7 +129,7 @@ export const Login: React.FC = () => {
           <div className="mt-6 pt-4 border-t border-slate-200 text-center text-xs text-slate-500">
             <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
               <ShieldCheck className="w-3.5 h-3.5" />
-              Role-based secure access: Owner &amp; Staff
+              Restricted access: one provisioned owner account
             </span>
           </div>
         </div>

@@ -46,10 +46,23 @@ try {
     try {
         & .\gradlew.bat :app:bundleRelease
         if ($LASTEXITCODE -ne 0) { throw 'Release bundle build failed.' }
+        & .\gradlew.bat :app:assembleRelease
+        if ($LASTEXITCODE -ne 0) { throw 'Release APK build failed.' }
     }
     finally { Pop-Location }
 
+    $releaseApk = Join-Path $androidRoot 'app\build\outputs\apk\release\app-release.apk'
+    $projectRoot = Split-Path $androidRoot -Parent
+    $adminPublicApk = Join-Path $projectRoot 'admin\public\ShivAgencyRewards.apk'
+    $adminDistApk = Join-Path $projectRoot 'admin\dist\ShivAgencyRewards.apk'
+    Copy-Item -LiteralPath $releaseApk -Destination $adminPublicApk -Force
+    if (Test-Path (Split-Path $adminDistApk -Parent)) {
+        Copy-Item -LiteralPath $releaseApk -Destination $adminDistApk -Force
+    }
+
     Write-Host "Signed AAB: $androidRoot\app\build\outputs\bundle\release\app-release.aab"
+    Write-Host "Signed APK: $androidRoot\app\build\outputs\apk\release\app-release.apk"
+    Write-Host "Download page files are staged in admin\public and admin\dist. Deploy Hosting after reviewing the signed build."
     Write-Host "Upload keystore (keep a secure backup): $keystorePath"
     Write-Warning 'Record the password in a password manager and back up the keystore securely. Never commit either file.'
 }
